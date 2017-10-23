@@ -66,8 +66,10 @@ Requirements:
 Steps:
 
 1, Build ffmpeg 3.0.9 with "--enable-shared" configuration.
+
    Source:
    https://www.ffmpeg.org/releases/ffmpeg-3.0.9.tar.gz
+   
    ffmpeg compilation guide: 
    https://trac.ffmpeg.org/wiki/CompilationGuide
    
