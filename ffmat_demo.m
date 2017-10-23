@@ -1,3 +1,5 @@
+% ffmat_demo by Gao Shan, 2017
+
 [VideoFileName,VideoPathName] = uigetfile('*.*','Please select the video file');
 Output_H = 720;
 Output_W = 1280;
