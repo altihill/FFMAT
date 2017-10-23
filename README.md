@@ -10,16 +10,18 @@ Date: 10/23/2017
 
 Author: Gao Shan
 
-E-mail: altihill@gmail.com
-
 ----------------------------------------------------------------------------
 ffmpeg version: 3.0.9 64bit
+
 ffmpeg API version: 3.0
+
 Tested C/C++ compliler: 
+    
     visual studio 2015/2017 (Windows 10)
     Xcode 9.0 with clang (macOS 10.13)
     gcc 5.4.0 (ubuntu 16.04)
 Tested MATLAB version: 
+    
     R2016a 64bit, R2015a 64bit, R2014a 64bit, R2012a 64bit on Windows
     R2016b 64bit on macOS
     R2016b 64bit on ubuntu
