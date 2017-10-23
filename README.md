@@ -1,12 +1,17 @@
 # FFMAT
 FFMAT, which is short for "ffmpeg for MATLAB", is a fast &amp; easy-to-use video decoding function for MATLAB.
 ----------------------------------------------------------------------------
+
 Packed ffmpeg demuxing/decoding API for MATLAB
 
 Version: 2.1
+
 Date: 10/23/2017
+
 Author: Gao Shan
+
 E-mail: altihill@gmail.com
+
 ----------------------------------------------------------------------------
 ffmpeg version: 3.0.9 64bit
 ffmpeg API version: 3.0
@@ -18,6 +23,7 @@ Tested MATLAB version:
     R2016a 64bit, R2015a 64bit, R2014a 64bit, R2012a 64bit on Windows
     R2016b 64bit on macOS
     R2016b 64bit on ubuntu
+    
 ----------------------------------------------------------------------------
 Copyright 2017 Gao Shan
 
