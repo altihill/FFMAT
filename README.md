@@ -56,8 +56,11 @@ Compilation Guide:
 Requirements:
 
 1, Windows/macOS/Linux 64bit
+
 2, MATLAB 64bit (2014+ prefered)
+
 3, mex compatiable C/C++ compiler (https://www.mathworks.com/support/compilers.html)
+
 4, all dependencies requried for building ffmpeg
 
 Steps:
