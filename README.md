@@ -79,6 +79,6 @@ Steps:
    FFMAT will not support newer ffmpeg until it matches 3.0.9 in speed.
 
 2, Run "build_script.m" after modifying the sourcepath variable as the parent 
-   path of "include" & "lib" folders.
+   path of "include" & "lib" folders, in which headers and library files of ffmpeg are installed.
    
 3, Run "ffmat_demo.m" to test. See help file for detailed sytax.
