@@ -8,7 +8,7 @@ Version: 2.1
 
 Date: 10/23/2017
 
-Author: Gao Shan
+Author: Gao Shan @ Zhu Lab
 
 ----------------------------------------------------------------------------
 ffmpeg version: 3.0.9 64bit
