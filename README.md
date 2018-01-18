@@ -73,7 +73,9 @@
 
 ### General Syntax
 
-`[output1, output2, ...] = ffmat('command',argument1,argument2,...);`
+```Matlab
+[output1, output2, ...] = ffmat('command',argument1,argument2,...);
+```
 
 For different command, argument number and output number may be variant.
 
