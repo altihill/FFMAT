@@ -15,8 +15,6 @@
 
 ## Meta info
 
----
-
 - ffmpeg version: 3.0.9 64bit
 - ffmpeg API version: 3.0
 - Tested C/C++ compliler
@@ -29,8 +27,6 @@
     - R2016b 64bit on ubuntu
 
 ## Change Log
-
----
 
 - version 2.1
   - better performance during sparsely picking
@@ -51,8 +47,6 @@
   - fix some mistakes in help file
 
 ## Compilation Guide
-
----
 
 ### Requirements
 
@@ -76,8 +70,6 @@
 1. Run "*ffmat_demo.m*" to test.
 
 ## Usage
-
----
 
 ### General Syntax
 
@@ -144,7 +136,5 @@ For different command, argument number and output number may be variant.
     - *Status* is 1 if success. Otherwise it is negative.
 
 ## Acknowledgement
-
----
 
 Zhu Lab @ IBP
