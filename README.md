@@ -15,19 +15,23 @@
 
 ## Meta info
 
-- ffmpeg version: 3.0.9 64bit
-- ffmpeg API version: 3.0
+- ffmpeg version: 4.0.2 64bit
+- ffmpeg API version: 4.0
 - Tested C/C++ compliler
-  - visual studio 2015/2017 (Windows 10)
-  - Xcode 9.0 with clang (macOS 10.13)
-  - gcc 5.4.0 (ubuntu 16.04)
+  - visual studio 2017 (Windows 10)
 - Tested MATLAB version
-    - R2016a 64bit, R2015a 64bit, R2014a 64bit, R2012a 64bit on Windows
-    - R2016b 64bit on macOS
-    - R2016b 64bit on ubuntu
+    - R2018a 64bit on Windows
 
 ## Change Log
-
+- version 3.0
+  - update to ffmpeg 4.0
+	- support hardware acceleration: 
+		- cuda (NVIDIA), 
+		- d3d11va (DirectX11), 
+		- dxva2 (DirectX9)
+	- openvideo command can be called without any additional parameters
+	- fix bug: memory overflow
+	- fix bug: Height and width props reflect the real output dimensions.
 - version 2.1
   - better performance during sparsely picking
   - fix building errors in macOS/Linux environments
@@ -83,6 +87,7 @@ For different command, argument number and output number may be variant.
 
 - openvideo
   - syntax
+    - `Status = ffmat('openvideo');`
     - `Status = ffmat('openvideo',filename);`
     - `Status = ffmat('openvideo',filename,outputW);`
     - `Status = ffmat('openvideo',filename,   0   ,outputH);`
