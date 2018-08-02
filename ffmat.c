@@ -84,7 +84,6 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
         if (FailCount<3) return GS_Pick((SeekFrame-2)>0 ? (SeekFrame-2):1, TargetFrame,FailCount++);
         else return dret;
 	else
-		mexPrintf("Pick:%d\n",TargetFrame);
         if (FailCount<10) return GS_Pick((SeekFrame-4)>0 ? (SeekFrame-4):1, TargetFrame,FailCount++);
         else return -3;
 }
