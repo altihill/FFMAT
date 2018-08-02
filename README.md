@@ -67,7 +67,7 @@ Note: Precompiled ffmpeg can be downloaded [here](https://ffmpeg.zeranoe.com/bui
 1. Git clone this repository to a folder like "*ffmat*".
 2. Copy folders "*include*" and "*lib*", from "*dev*" to "*ffmat*".
 3. In MATLAB, change current directory to "*ffmat*", Run "*build_script.m*". 
-4. Copy any files whose names contain "*avcodec*","*avformat*","*avutil*","*swscale*", from "*shared/bin/*" to "*ffmat*"
+4. Copy any files whose names contain "*avcodec*","*avformat*","*avutil*","*swscale*","*swresample*", from "*shared/bin/*" to "*ffmat*"
 5. Run "*ffmat_demo.m*" to test.
 
 ## Usage
