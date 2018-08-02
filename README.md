@@ -57,21 +57,18 @@
 1. Windows/macOS/Linux 64bit
 1. MATLAB 64bit (2014+ prefered)
 1. mex compatiable C/C++ compiler, [see here for detail](https://www.mathworks.com/support/compilers.html)
-1. all dependencies requried for building ffmpeg
+2. Precompiled ffmpeg dev package, extracted in a folder like "*dev*"
+3. Precompiled ffmpeg shared build package, extracted in a folder like "*shared*"
+
+Note: Precompiled ffmpeg can be downloaded [here](https://ffmpeg.zeranoe.com/builds/), or [compiled from ffmpeg source](https://trac.ffmpeg.org/wiki/CompilationGuide).
 
 ### Compilation Steps
 
-1. Build ffmpeg 3.0.9 with "*--enable-shared*" configuration.
-    - Download Source:
-    <https://www.ffmpeg.org/releases/ffmpeg-3.0.9.tar.gz>
-    - ffmpeg compilation guide:
-    <https://trac.ffmpeg.org/wiki/CompilationGuide>
-    - P.S.
-    Starting from ffmpeg 3.1, new decoding/encoding APIs are introduced. However, they actually perform slower than the legacy ones in my cases.
-    FFMAT will not support newer ffmpeg until it matches 3.0.9 in speed.
-
-1. Run "*build_script.m*" after modifying the sourcepath variable as the parent path of "*include*" & "*lib*" folders, in which headers and library files of ffmpeg are installed.
-1. Run "*ffmat_demo.m*" to test.
+1. Git clone this repository to a folder like "*ffmat*".
+2. Copy folders "*include*" and "*lib*", from "*dev*" to "*ffmat*".
+3. In MATLAB, change current directory to "*ffmat*", Run "*build_script.m*". 
+4. Copy any files whose names contain "*avcodec*","*avformat*","*avutil*","*swscale*", from "*shared/bin/*" to "*ffmat*"
+5. Run "*ffmat_demo.m*" to test.
 
 ## Usage
 

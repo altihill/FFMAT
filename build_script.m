@@ -1,7 +1,3 @@
-if ispc
-    [sourcepath,~,~] = fileparts(which('ffmat.c'));
-else
-    sourcepath = '/usr/local';
-end
+[sourcepath,~,~] = fileparts(which('ffmat.c'));
 mex('ffmat.c',['-I' sourcepath '/include'],['-L' sourcepath '/lib'],...
     '-lavcodec','-lavformat','-lavutil','-lswscale');
