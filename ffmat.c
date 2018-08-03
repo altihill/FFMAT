@@ -17,6 +17,7 @@ static int StreamIdx = -1;
 static int src_w, src_h, dst_w, dst_h;
 static int out_channel = -1;
 static int64_t b, c;
+static int steps = 24;
 
 static enum AVPixelFormat HWPixFmt;
 
@@ -69,7 +70,7 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 	// caculate pts of the seekframe and the targetframe
     if (SeekFrame<1 || TargetFrame<1) return -3;
 	TargetPts = av_rescale(TargetFrame-1,b,c) + Stream->start_time;
-	if (SeekFrame<20) SeekPts = Stream->first_dts;
+	if (SeekFrame<steps) SeekPts = Stream->first_dts;
     else SeekPts = av_rescale(SeekFrame-1,b,c) + Stream->start_time;
 	// seek to the seekframe
 	sret = av_seek_frame(FormatCtx, StreamIdx, SeekPts, AVSEEK_FLAG_BACKWARD);
@@ -216,6 +217,8 @@ void GS_Open(char *filename, int w, int h, enum AVPixelFormat dst_pix_fmt) {
     // for pts calculation
     b = Stream->avg_frame_rate.den * Stream->time_base.den;
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
+	if (CodecCtx->refs && CodecCtx->gop_size)
+        steps = CodecCtx->refs * CodecCtx->gop_size;
     mexLock();
     return;
 }
@@ -445,7 +448,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		}else {
 			int64_t FrameNum = (int64_t) mxGetScalar(prhs[1]);
 			if (CodecCtx->codec_id == AV_CODEC_ID_H264)
-				*Status = GS_Pick(((FrameNum-14)>0)?(FrameNum-14):1, FrameNum, 0);
+				*Status = GS_Pick(((FrameNum-steps)>0)?(FrameNum-steps):1, FrameNum, 0);
 			else
 				*Status = GS_Pick(FrameNum, FrameNum, 0);
 			if (*Status > -1) {
@@ -474,7 +477,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 				}
 			else {
 				if (CodecCtx->codec_id == AV_CODEC_ID_H264)
-					*Status = GS_Pick(((FrameNum-14)>0)?(FrameNum-14):1, FrameNum, 0);
+					*Status = GS_Pick(((FrameNum-steps)>0)?(FrameNum-steps):1, FrameNum, 0);
 				else
 					*Status = GS_Pick(FrameNum, FrameNum, 0);
 			}
