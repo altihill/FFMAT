@@ -67,16 +67,20 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 	double dret;
 	int sret;
 	int64_t SeekPts,TargetPts;
-	// caculate pts of the seekframe and the targetframe
+	// caculate pts of the targetframe
     if (SeekFrame<1 || TargetFrame<1) return -3;
-	TargetPts = av_rescale(TargetFrame-1,b,c) + Stream->start_time;
-	if (SeekFrame<steps) SeekPts = Stream->first_dts;
-    else SeekPts = av_rescale(SeekFrame-1,b,c) + Stream->start_time;
+	else TargetPts = av_rescale(TargetFrame-1,b,c) + Stream->start_time;
 	// seek to the seekframe
-	sret = av_seek_frame(FormatCtx, StreamIdx, SeekPts, AVSEEK_FLAG_BACKWARD);
-	if (sret < 0) return -3;
-    av_packet_unref(pkt);
-	avcodec_flush_buffers(CodecCtx);
+	if (TargetPts == frame->pts)
+		return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
+	else if (TargetPts<frame->pts || TargetPts>frame->pts+av_rescale(steps,b,c)) { 
+		if (SeekFrame<steps) SeekPts = Stream->first_dts;
+    	else SeekPts = av_rescale(SeekFrame-1,b,c) + Stream->start_time;
+		sret = av_seek_frame(FormatCtx, StreamIdx, SeekPts, AVSEEK_FLAG_BACKWARD);
+		if (sret < 0) return -3;
+		av_packet_unref(pkt);
+		avcodec_flush_buffers(CodecCtx);
+	}
 	// read and decode until targetframe
 	do dret = GS_Read();
 	while (dret > -1 && frame->pts < TargetPts);
@@ -260,14 +264,17 @@ mxArray* GS_memcpy() {
 }
 
 void GS_Close() {
-    mexUnlock();
-    pkt->data = NULL;
-    pkt->size = 0;
-    avcodec_send_packet(CodecCtx,pkt);
-    if (pkt)			            av_packet_free(&pkt);
+    if (mexIsLocked())				mexUnlock();
+	else 							return;
     if (CodecCtx->hw_device_ctx)    av_buffer_unref(&CodecCtx->hw_device_ctx);
-	if (CodecCtx)		            avcodec_free_context(&CodecCtx);
+	if (CodecCtx) {
+		pkt->data = NULL;
+		pkt->size = 0;
+		avcodec_send_packet(CodecCtx,pkt);
+		avcodec_free_context(&CodecCtx);
+	}
 	if (FormatCtx)		            avformat_close_input(&FormatCtx);
+	if (pkt)			            av_packet_free(&pkt);
 	if (frame)			            av_frame_free(&frame);
     if (hwframe)		            av_frame_free(&hwframe);
 	if (rawdata)		            av_freep(&rawdata);
