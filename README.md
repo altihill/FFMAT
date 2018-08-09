@@ -23,6 +23,9 @@
     - R2018a 64bit on Windows
 
 ## Change Log
+- version 3.1
+  - minor improvements during sparsely picking
+  - fix bug: fix crash after multiple 'closevideo' calls
 - version 3.0
   - update to ffmpeg 4.0
 	- support hardware acceleration: 
