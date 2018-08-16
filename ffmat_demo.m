@@ -1,7 +1,7 @@
 % ffmat_demo by Gao Shan, 2018
 
-pixfmt = 'Gray';
-sz = [720 1280 1];
+pixfmt = 'GRAY'; % 'RGB','YUV'
+sz = [720 1280 1];% [720 1280 3]
 [vfn,vpn] = uigetfile('*.*','Please select the video file');
 
 % open video
@@ -29,7 +29,7 @@ for ii = 1:n
     if ts(ii)>-1
         set(hi,'CData',frame);
         set(ht,'String',sprintf('Timestamp: %.2f s',ts(ii)));
-        pause(realmin);
+        drawnow;
     else
         error('Frame Read Failed');
     end
@@ -39,6 +39,7 @@ figure;
 plot(prop.NextFrame-n:prop.NextFrame-1,ts,'.');
 xlabel('Frame Number');
 ylabel('Timestamp (s)');
+drawnow;
 
 % sequential speed test
 n = 1000;
@@ -62,7 +63,7 @@ for ii = 1:n
     if ts(ii)>-1
         set(hi,'CData',frame);
         set(ht,'String',sprintf('Timestamp: %.2f s',ts(ii)));
-        pause(realmin);
+        drawnow;
     else
         error('Frame Pick Failed');
     end
@@ -71,6 +72,7 @@ figure;
 xlim([0 n+1]);
 yyaxis left, plot(seed,'o'), ylabel('Frame Number'), ylim([0 prop.TotalFrames]);
 yyaxis right, plot(ts,'.'), ylabel('Timestamp (s)'), ylim([0 prop.Duration]);
+drawnow;
 
 % sparse speed test
 n = 100;
