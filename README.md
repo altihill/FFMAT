@@ -23,6 +23,10 @@
     - R2018a 64bit on Windows
 
 ## Change Log
+- version 3.2
+  - significantly improved speed, achieved by reduced unnecessary memcopy
+  - no longer support for pixel formats: "R", "G", "B", "Y", "U", "V"
+    currently valid pixel formats: "GRAY", "RGB", "YUV"
 - version 3.1
   - minor improvements during sparsely picking
   - fix bug: fix crash after multiple 'closevideo' calls
@@ -58,10 +62,10 @@
 ### Requirements
 
 1. Windows/macOS/Linux 64bit
-1. MATLAB 64bit (2014+ prefered)
-1. mex compatiable C/C++ compiler, [see here for detail](https://www.mathworks.com/support/compilers.html)
-2. Precompiled ffmpeg dev package, extracted in a folder like "*dev*"
-3. Precompiled ffmpeg shared build package, extracted in a folder like "*shared*"
+2. MATLAB 64bit (2014+ prefered)
+3. mex compatiable C/C++ compiler, [see here for detail](https://www.mathworks.com/support/compilers.html)
+4. Precompiled ffmpeg dev package, extracted in a folder like "*dev*"
+5. Precompiled ffmpeg shared build package, extracted in a folder like "*shared*"
 
 Note: Precompiled ffmpeg can be downloaded [here](https://ffmpeg.zeranoe.com/builds/), or [compiled from ffmpeg source](https://trac.ffmpeg.org/wiki/CompilationGuide).
 
@@ -99,7 +103,7 @@ For different command, argument number and output number may be variant.
   - function
     - Open video file, should be called before using other commands.
   - input arguments
-    - *filename* is the whole videofile name, and should be string. *outputW*, *outputH* are the output resolution, and should be numeric. If one of those are not given or zero, default value would be applied. *outputPixFmt* is the output pixel format, and should be string. **'Gray','R','G','B','RGB','Y','U','V','YUV'** are all the valid value currently.
+    - *filename* is the whole videofile name, and should be string. *outputW*, *outputH* are the output resolution, and should be numeric. If one of those are not given or zero, default value would be applied. *outputPixFmt* is the output pixel format, and should be string. **'Gray','RGB','YUV'** are all the valid value currently.
   - return
     - *Status* is 1 if success. Otherwise it is negative.
 - getprop

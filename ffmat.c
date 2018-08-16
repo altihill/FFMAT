@@ -15,6 +15,7 @@ static AVStream *Stream = NULL;
 static struct SwsContext *SwsCtx = NULL;
 static int StreamIdx = -1;
 static int src_w, src_h, dst_w, dst_h;
+static enum AVPixelFormat dst_pix_fmt;
 static int64_t b, c;
 static int steps = 24;
 
@@ -93,7 +94,7 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
         else return -3;
 }
 
-void GS_Open(char *filename, enum AVPixelFormat dst_pix_fmt) {
+void GS_Open(char *filename) {
 	AVCodec *pCodec = NULL;
     AVCodecParameters *pCodecPara = NULL;
     AVBufferRef *HWDevCtx = NULL;
@@ -232,7 +233,6 @@ void GS_Open(char *filename, enum AVPixelFormat dst_pix_fmt) {
 			mxGetPr(mxin[1])[0] = 2;
 			mxGetPr(mxin[1])[1] = 1;
 			mxGetPr(mxin[1])[2] = 3;
-			break;
 	}
 	mexMakeArrayPersistent(mxin[0]);
 	mexMakeArrayPersistent(mxin[1]);
@@ -307,7 +307,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	if (!strncasecmp(FunctionName, "openvideo", 4)) {
 		char *FileName;
 		char *pixfmt_str = "GRAY";
-		enum AVPixelFormat out_pix_fmt;
 		if (FormatCtx) {
 			GS_Close();
 			mexWarnMsgTxt("Previous video has been closed.");
@@ -352,11 +351,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			default:
 				mexErrMsgTxt("'openvideo' command can have 0~4 additional arguments.");
 		}
-		if (!strcasecmp(pixfmt_str,"GRAY"))		    out_pix_fmt = AV_PIX_FMT_GRAY8;
-		else if (!strcasecmp(pixfmt_str,"RGB"))	    out_pix_fmt = AV_PIX_FMT_RGB24;
-		else if (!strcasecmp(pixfmt_str,"YUV"))	    out_pix_fmt = AV_PIX_FMT_YUV444P;
+		if (!strcasecmp(pixfmt_str,"GRAY"))		    dst_pix_fmt = AV_PIX_FMT_GRAY8;
+		else if (!strcasecmp(pixfmt_str,"RGB"))	    dst_pix_fmt = AV_PIX_FMT_RGB24;
+		else if (!strcasecmp(pixfmt_str,"YUV"))	    dst_pix_fmt = AV_PIX_FMT_YUV444P;
 		else									    mexErrMsgTxt("Invalid output pixel format.");
-		GS_Open(FileName,out_pix_fmt);
+		GS_Open(FileName);
 		mxFree(FileName);
 		if (nrhs>=5) mxFree(pixfmt_str);
 	}else if (!strncasecmp(FunctionName, "getprop", 3)) {
@@ -367,7 +366,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			plhs[1] = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
 			*(mxGetPr(plhs[1])) = -1;
 		}else {
-			const char * propname[] = {"FrameRate","Height","Width","Duration","TotalFrames",
+			const char * propname[] = {"FrameRate","Height","Width","PixFmt","Duration","TotalFrames",
 			                           "NextFrame","FileName","BitRate","AspectRatio"};
 			plhs[1] = mxCreateStructMatrix(1, 1, sizeof(propname)/sizeof(propname[0]), propname);
 			mxArray *mxparaval;
@@ -386,17 +385,28 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			*(mxGetPr(mxparaval)) = (double) dst_w;
 			mxSetFieldByNumber(plhs[1], 0, 2, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("Width may not be valid.");
+			// pixfmt
+			switch (dst_pix_fmt) {
+				case AV_PIX_FMT_GRAY8:
+				mxSetFieldByNumber(plhs[1], 0, 3, mxCreateString("GRAY"));
+				break;
+				case AV_PIX_FMT_RGB24:
+				mxSetFieldByNumber(plhs[1], 0, 3, mxCreateString("RGB"));
+				break;
+				case AV_PIX_FMT_YUV444P:
+				mxSetFieldByNumber(plhs[1], 0, 3, mxCreateString("YUV"));
+			}
 			// duration
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
 			*(mxGetPr(mxparaval)) = (double) Stream->duration * av_q2d(Stream->time_base);
-			mxSetFieldByNumber(plhs[1], 0, 3, mxparaval);
+			mxSetFieldByNumber(plhs[1], 0, 4, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("Duration may not be valid.");
 			// total frames
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
 			AVRational frametime = av_inv_q(Stream->avg_frame_rate);
 			if (Stream->nb_frames > 0) *(mxGetPr(mxparaval)) = (double) Stream->nb_frames;
 			else *(mxGetPr(mxparaval)) = (double) av_rescale_q(Stream->duration, Stream->time_base, frametime);
-			mxSetFieldByNumber(plhs[1], 0, 4, mxparaval);
+			mxSetFieldByNumber(plhs[1], 0, 5, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("TotalFrames may not be valid.");
 			// next frame
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
@@ -408,19 +418,19 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 				*(mxGetPr(mxparaval)) = -1;
 				mexWarnMsgTxt("NextFrame is invalid because it is the end of the video.");
 			}else *(mxGetPr(mxparaval)) = 1;
-			mxSetFieldByNumber(plhs[1], 0, 5, mxparaval);
+			mxSetFieldByNumber(plhs[1], 0, 6, mxparaval);
 			// file name
-			mxSetFieldByNumber(plhs[1], 0, 6, mxCreateString(FormatCtx->filename));
+			mxSetFieldByNumber(plhs[1], 0, 7, mxCreateString(FormatCtx->filename));
 			// bit rate
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
 			*(mxGetPr(mxparaval)) = (double) FormatCtx->bit_rate;
-			mxSetFieldByNumber(plhs[1], 0, 7, mxparaval);
+			mxSetFieldByNumber(plhs[1], 0, 8, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("BitRate may not be valid.");
 			// aspect ratio
 			mxparaval = mxCreateNumericMatrix(2,1,mxDOUBLE_CLASS,mxREAL);
 			(mxGetPr(mxparaval))[0] = Stream->display_aspect_ratio.num;
 			(mxGetPr(mxparaval))[1] = Stream->display_aspect_ratio.den;
-			mxSetFieldByNumber(plhs[1], 0, 8, mxparaval);
+			mxSetFieldByNumber(plhs[1], 0, 9, mxparaval);
 			if ((mxGetPr(mxparaval)[0])<=0 || (mxGetPr(mxparaval)[1])<=0) mexWarnMsgTxt("AspectRatio may not be valid.");
 		}
 	}else if (!strncasecmp(FunctionName, "readframe", 4)) {
