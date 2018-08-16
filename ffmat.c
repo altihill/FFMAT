@@ -15,14 +15,14 @@ static AVStream *Stream = NULL;
 static struct SwsContext *SwsCtx = NULL;
 static int StreamIdx = -1;
 static int src_w, src_h, dst_w, dst_h;
-static int out_channel = -1;
 static int64_t b, c;
 static int steps = 24;
 
 static enum AVPixelFormat HWPixFmt;
 
+static mxArray *mxin[2];
 static uint8_t *rawdata[4] = {NULL};
-static int rawdata_linesize[4];
+static int rawdata_linesize[4] = {0};
 static AVFrame *frame = NULL;
 static AVFrame *hwframe = NULL;
 static AVPacket *pkt;
@@ -93,7 +93,7 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
         else return -3;
 }
 
-void GS_Open(char *filename, int w, int h, enum AVPixelFormat dst_pix_fmt) {
+void GS_Open(char *filename, enum AVPixelFormat dst_pix_fmt) {
 	AVCodec *pCodec = NULL;
     AVCodecParameters *pCodecPara = NULL;
     AVBufferRef *HWDevCtx = NULL;
@@ -102,6 +102,8 @@ void GS_Open(char *filename, int w, int h, enum AVPixelFormat dst_pix_fmt) {
     enum AVPixelFormat *src_pix_fmts = NULL;
     enum AVPixelFormat src_pix_fmt;
     int i, j;
+	uint8_t *pData = NULL;
+	mwSize dims[3] = {0};
     // find available hwaccel dev
     enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
     enum AVHWDeviceType HWDevs[] = {
@@ -189,10 +191,51 @@ void GS_Open(char *filename, int w, int h, enum AVPixelFormat dst_pix_fmt) {
 	// output buffer
 	src_w = CodecCtx->width;
 	src_h = CodecCtx->height;
-	dst_w = w == 0 ? src_w : w;
-	dst_h = h == 0 ? src_h : h;
-	if (av_image_alloc(rawdata, rawdata_linesize, dst_w, dst_h, dst_pix_fmt, 4) < 0)
-		mexErrMsgTxt("Failed to allocate raw video buffer");
+	dst_w = dst_w == 0 ? src_w : dst_w;
+	dst_h = dst_h == 0 ? src_h : dst_h;
+	switch (dst_pix_fmt) {
+		case AV_PIX_FMT_GRAY8:
+			mxin[0] = mxCreateNumericMatrix(dst_w,dst_h,mxUINT8_CLASS,mxREAL);
+			pData = (uint8_t *)mxGetData(mxin[0]);
+			rawdata[0] = pData;
+			rawdata_linesize[0] = dst_w;
+			mxin[1] = mxCreateDoubleMatrix(2,1,mxREAL);
+			mxGetPr(mxin[1])[0] = 2;
+			mxGetPr(mxin[1])[1] = 1;
+			break;
+		case AV_PIX_FMT_RGB24:
+			dims[0] = 3;
+			dims[1] = dst_w;
+			dims[2] = dst_h;
+			mxin[0] = mxCreateNumericArray(3,dims,mxUINT8_CLASS,mxREAL);
+			pData = (uint8_t *)mxGetData(mxin[0]);
+			rawdata[0] = pData;
+			rawdata_linesize[0] = 3*dst_w;
+			mxin[1] = mxCreateDoubleMatrix(3,1,mxREAL);
+			mxGetPr(mxin[1])[0] = 3;
+			mxGetPr(mxin[1])[1] = 2;
+			mxGetPr(mxin[1])[2] = 1;
+			break;
+		case AV_PIX_FMT_YUV444P:
+			dims[0] = dst_w;
+			dims[1] = dst_h;
+			dims[2] = 3;
+			mxin[0] = mxCreateNumericArray(3,dims,mxUINT8_CLASS,mxREAL);
+			pData = (uint8_t *)mxGetData(mxin[0]);
+			rawdata[0] = pData;
+			rawdata[1] = pData + dst_w*dst_h;
+			rawdata[2] = pData + 2*dst_w*dst_h;
+			rawdata_linesize[0] = dst_w;
+			rawdata_linesize[1] = dst_w;
+			rawdata_linesize[2] = dst_w;
+			mxin[1] = mxCreateDoubleMatrix(3,1,mxREAL);
+			mxGetPr(mxin[1])[0] = 2;
+			mxGetPr(mxin[1])[1] = 1;
+			mxGetPr(mxin[1])[2] = 3;
+			break;
+	}
+	mexMakeArrayPersistent(mxin[0]);
+	mexMakeArrayPersistent(mxin[1]);
 	// negotiate transfer pixfmt
     GS_Read();
     if (av_hwframe_transfer_get_formats(hwframe->hw_frames_ctx,
@@ -227,45 +270,11 @@ void GS_Open(char *filename, int w, int h, enum AVPixelFormat dst_pix_fmt) {
     return;
 }
 
-mxArray* GS_memcpy() {
-	mxArray* Ret;
-	uint8_t *pOutputData;
-	if (out_channel<3) {
-		Ret = mxCreateNumericMatrix(dst_h,dst_w,mxUINT8_CLASS,mxREAL);
-		pOutputData = (uint8_t *)mxGetData(Ret);
-		for (int i=0; i<dst_w; i++)
-			for (int j=0; j<dst_h; j++, pOutputData++)
-				*pOutputData = *(rawdata[0]+(j*dst_w+i)*3+out_channel);
-	}else if (out_channel == 3) {
-		const mwSize dims[] = {dst_h,dst_w,3};
-		Ret = mxCreateNumericArray(3,dims,mxUINT8_CLASS,mxREAL);
-		pOutputData = (uint8_t *)mxGetData(Ret);
-		for (int ij=0; ij<3; ij++)
-			for (int i=0; i<dst_w; i++)
-				for (int j=0; j<dst_h; j++, pOutputData++)
-					*pOutputData = *(rawdata[0]+(j*dst_w+i)*3+ij);
-	}else if (out_channel<7) {
-		Ret = mxCreateNumericMatrix(dst_h,dst_w,mxUINT8_CLASS,mxREAL);
-		pOutputData = (uint8_t *)mxGetData(Ret);
-		for (int i=0; i<dst_w; i++)
-			for (int j=0; j<dst_h; j++, pOutputData++)
-				*pOutputData = *(rawdata[out_channel-4]+j*dst_w+i);
-	}else if (out_channel=7) {
-		const mwSize dims[] = {dst_h,dst_w,3};
-		Ret = mxCreateNumericArray(3,dims,mxUINT8_CLASS,mxREAL);
-		pOutputData = (uint8_t *)mxGetData(Ret);
-		for (int ij=0; ij<3; ij++)
-			for (int i=0; i<dst_w; i++)
-				for (int j=0; j<dst_h; j++, pOutputData++)
-					*pOutputData = *(rawdata[ij]+j*dst_w+i);
-	}else
-		mexErrMsgTxt("Invalid output channel.");
-	return Ret;
-}
-
 void GS_Close() {
     if (mexIsLocked())				mexUnlock();
 	else 							return;
+	mxDestroyArray(mxin[0]);
+	mxDestroyArray(mxin[1]);
     if (CodecCtx->hw_device_ctx)    av_buffer_unref(&CodecCtx->hw_device_ctx);
 	if (CodecCtx) {
 		pkt->data = NULL;
@@ -277,7 +286,6 @@ void GS_Close() {
 	if (pkt)			            av_packet_free(&pkt);
 	if (frame)			            av_frame_free(&frame);
     if (hwframe)		            av_frame_free(&hwframe);
-	if (rawdata)		            av_freep(&rawdata);
 	if (SwsCtx)		                {sws_freeContext(SwsCtx); SwsCtx = NULL;}
 	return;
 }
@@ -297,7 +305,6 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 	*Status = 1;
 	// parse command
 	if (!strncasecmp(FunctionName, "openvideo", 4)) {
-		int h=0, w=0;
 		char *FileName;
 		char *pixfmt_str = "GRAY";
 		enum AVPixelFormat out_pix_fmt;
@@ -316,12 +323,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 				if (!mxIsNumeric(prhs[3]))
 					mexErrMsgTxt("The third argument after 'open' command must be numeric type, representing height of the output frame");
 				else
-					h = (int) mxGetScalar(prhs[3]);
+					dst_h = (int) mxGetScalar(prhs[3]);
 			case 3:
 				if (!mxIsNumeric(prhs[2]))
 					mexErrMsgTxt("The second argument after 'open' command must be numeric type, representing width of the output frame");
 				else
-					w = (int) mxGetScalar(prhs[2]);
+					dst_w = (int) mxGetScalar(prhs[2]);
 			case 2:
 				if (!mxIsChar(prhs[1]))
 					mexErrMsgTxt("The first argument after 'open' command must be string, representing filename");
@@ -345,17 +352,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			default:
 				mexErrMsgTxt("'openvideo' command can have 0~4 additional arguments.");
 		}
-		if (!strcasecmp(pixfmt_str,"GRAY"))		    {out_channel = 4; out_pix_fmt = AV_PIX_FMT_GRAY8;}
-		else if (!strcasecmp(pixfmt_str,"R"))		{out_channel = 0; out_pix_fmt = AV_PIX_FMT_RGB24;}
-		else if (!strcasecmp(pixfmt_str,"G"))		{out_channel = 1; out_pix_fmt = AV_PIX_FMT_RGB24;}
-		else if (!strcasecmp(pixfmt_str,"B"))		{out_channel = 2; out_pix_fmt = AV_PIX_FMT_RGB24;}
-		else if (!strcasecmp(pixfmt_str,"RGB"))	    {out_channel = 3; out_pix_fmt = AV_PIX_FMT_RGB24;}
-		else if (!strcasecmp(pixfmt_str,"Y"))		{out_channel = 4; out_pix_fmt = AV_PIX_FMT_YUV420P;}
-		else if (!strcasecmp(pixfmt_str,"U"))		{out_channel = 5; out_pix_fmt = AV_PIX_FMT_YUV444P;}
-		else if (!strcasecmp(pixfmt_str,"V"))		{out_channel = 6; out_pix_fmt = AV_PIX_FMT_YUV444P;}
-		else if (!strcasecmp(pixfmt_str,"YUV"))	    {out_channel = 7; out_pix_fmt = AV_PIX_FMT_YUV444P;}
+		if (!strcasecmp(pixfmt_str,"GRAY"))		    out_pix_fmt = AV_PIX_FMT_GRAY8;
+		else if (!strcasecmp(pixfmt_str,"RGB"))	    out_pix_fmt = AV_PIX_FMT_RGB24;
+		else if (!strcasecmp(pixfmt_str,"YUV"))	    out_pix_fmt = AV_PIX_FMT_YUV444P;
 		else									    mexErrMsgTxt("Invalid output pixel format.");
-		GS_Open(FileName, w, h, out_pix_fmt);
+		GS_Open(FileName,out_pix_fmt);
 		mxFree(FileName);
 		if (nrhs>=5) mxFree(pixfmt_str);
 	}else if (!strncasecmp(FunctionName, "getprop", 3)) {
@@ -434,7 +435,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			*Status = GS_Read();
 			if (*Status > -1) {
 				sws_scale(SwsCtx, frame->data, frame->linesize, 0, src_h, rawdata, rawdata_linesize);
-				plhs[1] = GS_memcpy();
+				mexCallMATLAB(1,&plhs[1],2,mxin,"permute");
 			}else {
 				plhs[1] = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
 				*(mxGetPr(plhs[1])) = -1;
@@ -460,7 +461,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 				*Status = GS_Pick(FrameNum, FrameNum, 0);
 			if (*Status > -1) {
 				sws_scale(SwsCtx, frame->data, frame->linesize, 0, src_h, rawdata, rawdata_linesize);
-				plhs[1] = GS_memcpy();
+				mexCallMATLAB(1,&plhs[1],2,mxin,"permute");
 			}else {
 				plhs[1] = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
 				*(mxGetPr(plhs[1])) = -1;
