@@ -27,7 +27,9 @@
   - significantly improved speed, achieved by reduced unnecessary memcopy
   - no longer support for pixel formats: "R", "G", "B", "Y", "U", "V"
     currently valid pixel formats: "GRAY", "RGB", "YUV"
-  - add "PixFmt" to gerprop return
+  - add "PixFmt" to property list
+  - fix fatal bug reading last frame
+  - fix bug calculating TotalFrames 
 - version 3.1
   - minor improvements during sparsely picking
   - fix bug: fix crash after multiple 'closevideo' calls
