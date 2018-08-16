@@ -53,13 +53,21 @@ int GS_Load() {
 double GS_Read() {
 	int GotFrame, ValidLoad;
 	ValidLoad = GS_Load();
-	if (ValidLoad >= -1){
+	if (ValidLoad > -1){
 		GotFrame = avcodec_receive_frame(CodecCtx, hwframe);
 		if (GotFrame == 0) {
-            if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return -3;
+            if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return -4;
             else frame->pts = hwframe->pts;
 			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
 		}else if (GotFrame == AVERROR(EAGAIN)) return GS_Read();
+		else return -3;
+	}else if(ValidLoad == -1){
+		GotFrame = avcodec_receive_frame(CodecCtx, hwframe);
+		if (GotFrame == 0) {
+            if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return -4;
+            else frame->pts = hwframe->pts;
+			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
+		}else if (GotFrame == AVERROR(EAGAIN)) return -1;
 		else return -3;
 	}else return ValidLoad;
 }
@@ -362,9 +370,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		if (nlhs != 2)
 			mexErrMsgTxt("'getprop' command must have 2 output arguments");
 		if (!FormatCtx) {
-			*Status = -4;
-			plhs[1] = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-			*(mxGetPr(plhs[1])) = -1;
+			*Status = -5;
+			plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 		}else {
 			const char * propname[] = {"FrameRate","Height","Width","PixFmt","Duration","TotalFrames",
 			                           "NextFrame","FileName","BitRate","AspectRatio"};
@@ -405,7 +412,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
 			AVRational frametime = av_inv_q(Stream->avg_frame_rate);
 			if (Stream->nb_frames > 0) *(mxGetPr(mxparaval)) = (double) Stream->nb_frames;
-			else *(mxGetPr(mxparaval)) = (double) av_rescale_q(Stream->duration, Stream->time_base, frametime);
+			else *(mxGetPr(mxparaval)) = (double) av_rescale_q(Stream->duration, Stream->time_base, frametime)-1;
 			mxSetFieldByNumber(plhs[1], 0, 5, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("TotalFrames may not be valid.");
 			// next frame
@@ -438,17 +445,15 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			mexErrMsgTxt("'readframe' command must have 2 output arguments");
 		// read, decode and rescale frame
 		if (!FormatCtx) {
-			*Status = -4;
-			plhs[1] = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-			*(mxGetPr(plhs[1])) = -1;
+			*Status = -5;
+			plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 		}else {
 			*Status = GS_Read();
 			if (*Status > -1) {
 				sws_scale(SwsCtx, frame->data, frame->linesize, 0, src_h, rawdata, rawdata_linesize);
 				mexCallMATLAB(1,&plhs[1],2,mxin,"permute");
 			}else {
-				plhs[1] = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-				*(mxGetPr(plhs[1])) = -1;
+				plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 			}
 		}
 	}else if (!strncasecmp(FunctionName, "pickframe", 4)) {
@@ -460,9 +465,8 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			mexErrMsgTxt("The first argument after 'pickframe' command must be numeric, representing frame number");
 		// seek, read, decode and rescale frame
 		if (!FormatCtx) {
-			*Status = -4;
-			plhs[1] = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-			*(mxGetPr(plhs[1])) = -1;
+			*Status = -5;
+			plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 		}else {
 			int64_t FrameNum = (int64_t) mxGetScalar(prhs[1]);
 			if (CodecCtx->codec_id == AV_CODEC_ID_H264)
@@ -473,8 +477,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 				sws_scale(SwsCtx, frame->data, frame->linesize, 0, src_h, rawdata, rawdata_linesize);
 				mexCallMATLAB(1,&plhs[1],2,mxin,"permute");
 			}else {
-				plhs[1] = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-				*(mxGetPr(plhs[1])) = -1;
+				plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 			}
 		}
 	}else if (!strncasecmp(FunctionName, "seekframe", 4)) {
@@ -483,7 +486,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		if (!mxIsNumeric(prhs[1]))
 			mexErrMsgTxt("The first argument after 'seekframe' command must be numeric, representing frame number");
 		// seek to frame
-		if (!FormatCtx) *Status = -4;
+		if (!FormatCtx) *Status = -5;
 		else {
 			int64_t FrameNum = (int64_t) mxGetScalar(prhs[1])-1;
 			if (FrameNum == 0)
