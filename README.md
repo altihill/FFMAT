@@ -23,11 +23,13 @@
     - R2018a 64bit on Windows
 
 ## Change Log
-- version 3.2
+- version 4.0
+  - allow fallback to software mode, if hardware acceleration fails
   - significantly improved speed, achieved by reduced unnecessary memcopy
   - no longer support for pixel formats: "R", "G", "B", "Y", "U", "V"
     currently valid pixel formats: "GRAY", "RGB", "YUV"
   - add "PixFmt" to property list
+  - initial optimization for HEVC (h.265)
   - fix fatal bug reading last frame
   - fix bug calculating TotalFrames 
 - version 3.1
