@@ -469,7 +469,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 		}else {
 			int64_t FrameNum = (int64_t) mxGetScalar(prhs[1]);
-			if (CodecCtx->codec_id == AV_CODEC_ID_H264)
+			if (CodecCtx->codec_id == AV_CODEC_ID_H264 || CodecCtx->codec_id == AV_CODEC_ID_H265)
 				*Status = GS_Pick(((FrameNum-steps)>0)?(FrameNum-steps):1, FrameNum, 0);
 			else
 				*Status = GS_Pick(FrameNum, FrameNum, 0);
@@ -497,7 +497,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 					*Status = (Stream->first_dts-Stream->start_time) * av_q2d(Stream->time_base);
 				}
 			else {
-				if (CodecCtx->codec_id == AV_CODEC_ID_H264)
+				if (CodecCtx->codec_id == AV_CODEC_ID_H264 || CodecCtx->codec_id == AV_CODEC_ID_H265)
 					*Status = GS_Pick(((FrameNum-steps)>0)?(FrameNum-steps):1, FrameNum, 0);
 				else
 					*Status = GS_Pick(FrameNum, FrameNum, 0);
