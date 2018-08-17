@@ -1,33 +1,45 @@
 #include "ffmat.h"
 
-void GS_Open_sw(char *filename) {
+int GS_Open_sw(char *filename) {
 	AVCodec *pCodec = NULL;
     AVCodecParameters *pCodecPara = NULL;
     int i, j;
 	uint8_t *pData = NULL;
 	mwSize dims[3] = {0};
 	// open input file, and allocate format context
-	if (avformat_open_input(&FormatCtx, filename, NULL, NULL) < 0)
-		mexErrMsgTxt("Failed to open video file");
+	if (avformat_open_input(&FormatCtx, filename, NULL, NULL) < 0) {
+		mexWarnMsgTxt("Failed to open video file");
+		goto fail;
+	}
 	// retrieve stream information
-	if (avformat_find_stream_info(FormatCtx, NULL) < 0)
-		mexErrMsgTxt("Failed to retrieve video stream information");
+	if (avformat_find_stream_info(FormatCtx, NULL) < 0) {
+		mexWarnMsgTxt("Failed to retrieve video stream information");
+		goto fail;
+	}
 	// find video stream
 	StreamIdx = av_find_best_stream(FormatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, &pCodec, 0);
-	if (StreamIdx < 0)
-		mexErrMsgTxt("Failed to find valid video stream");
+	if (StreamIdx < 0) {
+		mexWarnMsgTxt("Failed to find valid video stream");
+		goto fail;
+	}
 	// initiate codec context
 	CodecCtx = avcodec_alloc_context3(pCodec);
-	if (!CodecCtx)
-		mexErrMsgTxt("Failed to allocate codec context");
+	if (!CodecCtx) {
+		mexWarnMsgTxt("Failed to allocate codec context");
+		goto fail;
+	}
     Stream = FormatCtx->streams[StreamIdx];
 	pCodecPara = Stream->codecpar;
-	if (avcodec_parameters_to_context(CodecCtx, pCodecPara) < 0)
-		mexErrMsgTxt("Failed to fill codec context");
+	if (avcodec_parameters_to_context(CodecCtx, pCodecPara) < 0) {
+		mexWarnMsgTxt("Failed to fill codec context");
+		goto fail;
+	}
     av_opt_set_int(CodecCtx, "refcounted_frames", 1, 0);
     // open codec
-	if (avcodec_open2(CodecCtx, pCodec, NULL) < 0)
-		mexErrMsgTxt("Failed to open codec");
+	if (avcodec_open2(CodecCtx, pCodec, NULL) < 0) {
+		mexWarnMsgTxt("Failed to open codec");
+		goto fail;
+	}
 	if (!av_reduce(
 		&(Stream->display_aspect_ratio.num),
 		&(Stream->display_aspect_ratio.den),
@@ -38,14 +50,18 @@ void GS_Open_sw(char *filename) {
 	// allocate buffer
 	// input buffer
     pkt = av_packet_alloc();
-	if (!pkt)
-		mexErrMsgTxt("Failed to allocate input buffer");
+	if (!pkt) {
+		mexWarnMsgTxt("Failed to allocate input buffer");
+		goto fail;
+	}
     pkt->data = NULL;
     pkt->size = 0;
 	// decoded buffer
 	frame = av_frame_alloc();
-	if (!frame)
-		mexErrMsgTxt("Failed to allocate decode buffer");
+	if (!frame) {
+		mexWarnMsgTxt("Failed to allocate decode buffer");
+		goto fail;
+	}
 	// output buffer
 	src_w = CodecCtx->width;
 	src_h = CodecCtx->height;
@@ -97,22 +113,28 @@ void GS_Open_sw(char *filename) {
 	SwsCtx = sws_getContext(src_w, src_h, CodecCtx->pix_fmt, 
 							dst_w, dst_h, dst_pix_fmt, 
 							SWS_BILINEAR, NULL, NULL, NULL);
-	if (!SwsCtx)
-		mexErrMsgTxt("Impossible to convert source to target pix_fmt");
+	if (!SwsCtx) {
+		mexWarnMsgTxt("Impossible to convert source to target pix_fmt");
+		goto fail;
+	}
     // for pts calculation
     b = Stream->avg_frame_rate.den * Stream->time_base.den;
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
 	if (CodecCtx->refs && CodecCtx->gop_size)
         steps = CodecCtx->refs * CodecCtx->gop_size;
     mexLock();
-    return;
+    return 1;
+
+	fail:
+	GS_Close();
+	return FFMAT_ERR_OPEN;
 }
 
 static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts) {
     const enum AVPixelFormat *p;
     for (p = pix_fmts; *p != -1; p++)
         if (*p == HWPixFmt) return *p;
-    mexErrMsgTxt("Failed to get HW surface format.\n");
+    mexWarnMsgTxt("Failed to get HW surface format");
     return AV_PIX_FMT_NONE;
 }
 
@@ -120,12 +142,12 @@ int GS_Load() {
 	int ValidRead, ValidSend;
 	if (pkt->data) {
 		ValidSend = avcodec_send_packet(CodecCtx, pkt);
-		if (ValidSend == 0)  {av_packet_unref(pkt); return 0;}
-        else if (ValidSend == AVERROR(EAGAIN))		return 0;
-		else if (ValidSend < 0)			            return -2;
+		if (ValidSend == 0)  {av_packet_unref(pkt); return 1;}
+        else if (ValidSend == AVERROR(EAGAIN))		return 1;
+		else if (ValidSend < 0)			            return FFMAT_ERR_FEED;
 	}
 	ValidRead = av_read_frame(FormatCtx, pkt);
-	if (ValidRead < 0) return -1;
+	if (ValidRead < 0) return FFMAT_ERR_READ;
     else if (pkt->stream_index != StreamIdx) av_packet_unref(pkt);
 	return GS_Load();
 }
@@ -133,40 +155,40 @@ int GS_Load() {
 double GS_Read_sw() {
 	int GotFrame, ValidLoad;
 	ValidLoad = GS_Load();
-	if (ValidLoad > -1){
+	if (ValidLoad > FFMAT_ERR){
 		GotFrame = avcodec_receive_frame(CodecCtx, frame);
 		if (GotFrame == 0) 
 			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
 		else if (GotFrame == AVERROR(EAGAIN)) return GS_Read_sw();
-		else return -3;
-	}else if(ValidLoad == -1){
+		else return FFMAT_ERR_DECODE;
+	}else if(ValidLoad == FFMAT_ERR_READ){
 		GotFrame = avcodec_receive_frame(CodecCtx, frame);
 		if (GotFrame == 0)
 			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
-		else if (GotFrame == AVERROR(EAGAIN)) return -1;
-		else return -3;
+		else if (GotFrame == AVERROR(EAGAIN)) return ValidLoad;
+		else return FFMAT_ERR_DECODE;
 	}else return ValidLoad;
 }
 
 double GS_Read_hw() {
 	int GotFrame, ValidLoad;
 	ValidLoad = GS_Load();
-	if (ValidLoad > -1){
+	if (ValidLoad > FFMAT_ERR){
 		GotFrame = avcodec_receive_frame(CodecCtx, hwframe);
 		if (GotFrame == 0) {
-            if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return -4;
+            if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return FFMAT_ERR_HWT;
             else frame->pts = hwframe->pts;
 			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
 		}else if (GotFrame == AVERROR(EAGAIN)) return GS_Read_hw();
-		else return -3;
-	}else if(ValidLoad == -1){
+		else return FFMAT_ERR_DECODE;
+	}else if(ValidLoad == FFMAT_ERR_READ){
 		GotFrame = avcodec_receive_frame(CodecCtx, hwframe);
 		if (GotFrame == 0) {
-            if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return -4;
+            if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return FFMAT_ERR_HWT;
             else frame->pts = hwframe->pts;
 			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
-		}else if (GotFrame == AVERROR(EAGAIN)) return -1;
-		else return -3;
+		}else if (GotFrame == AVERROR(EAGAIN)) return ValidLoad;
+		else return FFMAT_ERR_DECODE;
 	}else return ValidLoad;
 }
 
@@ -180,7 +202,7 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 	int sret;
 	int64_t SeekPts,TargetPts;
 	// caculate pts of the targetframe
-    if (SeekFrame<1 || TargetFrame<1) return -5;
+    if (SeekFrame<1 || TargetFrame<1) return FFMAT_ERR_SEEK;
 	TargetPts = av_rescale(TargetFrame-1,b,c) + Stream->start_time;
 	// seek to the seekframe
 	if (TargetPts == frame->pts)
@@ -189,22 +211,22 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 		if (SeekFrame<steps) SeekPts = Stream->first_dts;
     	else SeekPts = av_rescale(SeekFrame-1,b,c) + Stream->start_time;
 		sret = av_seek_frame(FormatCtx, StreamIdx, SeekPts, AVSEEK_FLAG_BACKWARD);
-		if (sret < 0) return -5;
+		if (sret < 0) return FFMAT_ERR_SEEK;
 		av_packet_unref(pkt);
 		avcodec_flush_buffers(CodecCtx);
 	}
 	// read and decode until targetframe
 	do dret = GS_Read();
-	while (dret > -1 && frame->pts < TargetPts);
+	while (dret > FFMAT_ERR && frame->pts < TargetPts);
 	if (frame->pts == TargetPts) return dret;
     else if (FailCount<15) 
 		return GS_Pick((SeekFrame-2)>0 ? (SeekFrame-2):1, TargetFrame, ++FailCount);
-    else return -5;
+    else return FFMAT_ERR_SEEK;
 }
 
-void GS_Close() {
+int GS_Close() {
     if (mexIsLocked())				mexUnlock();
-	else 							return;
+	else 							return 1;
 	mxDestroyArray(mxin[0]);
 	mxDestroyArray(mxin[1]);
     if (CodecCtx->hw_device_ctx)    av_buffer_unref(&CodecCtx->hw_device_ctx);
@@ -219,10 +241,10 @@ void GS_Close() {
 	if (frame)			            av_frame_free(&frame);
     if (hwframe)		            av_frame_free(&hwframe);
 	if (SwsCtx)		                {sws_freeContext(SwsCtx); SwsCtx = NULL;}
-	return;
+	return 1;
 }
 
-void GS_Open(char *filename) {
+int GS_Open(char *filename) {
 	// prefer software decoder
 	if (!HwAccel) return GS_Open_sw(filename);
 	// try hw decoder now
@@ -255,15 +277,21 @@ void GS_Open(char *filename) {
 		goto fallback;
 	}
 	// open input file, and allocate format context
-	if (avformat_open_input(&FormatCtx, filename, NULL, NULL) < 0)
-		mexErrMsgTxt("Failed to open video file");
+	if (avformat_open_input(&FormatCtx, filename, NULL, NULL) < 0) {
+		mexWarnMsgTxt("Failed to open video file");
+		goto fail;
+	}
 	// retrieve stream information
-	if (avformat_find_stream_info(FormatCtx, NULL) < 0)
-		mexErrMsgTxt("Failed to retrieve video stream information");
+	if (avformat_find_stream_info(FormatCtx, NULL) < 0) {
+		mexWarnMsgTxt("Failed to retrieve video stream information");
+		goto fail;
+	}
 	// find video stream
 	StreamIdx = av_find_best_stream(FormatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, &pCodec, 0);
-	if (StreamIdx < 0)
-		mexErrMsgTxt("Failed to find valid video stream");
+	if (StreamIdx < 0) {
+		mexWarnMsgTxt("Failed to find valid video stream");
+		goto fail;
+	}
     // determine whether codec support existing hwaccel devs
     for (i=0;;i++) {
         const AVCodecHWConfig *config = avcodec_get_hw_config(pCodec, i);
@@ -286,12 +314,16 @@ void GS_Open(char *filename) {
     }
 	// initiate codec context
 	CodecCtx = avcodec_alloc_context3(pCodec);
-	if (!CodecCtx)
-		mexErrMsgTxt("Failed to allocate codec context");
+	if (!CodecCtx) {
+		mexWarnMsgTxt("Failed to allocate codec context");
+		goto fail;
+	}
     Stream = FormatCtx->streams[StreamIdx];
 	pCodecPara = Stream->codecpar;
-	if (avcodec_parameters_to_context(CodecCtx, pCodecPara) < 0)
-		mexErrMsgTxt("Failed to fill codec context");
+	if (avcodec_parameters_to_context(CodecCtx, pCodecPara) < 0) {
+		mexWarnMsgTxt("Failed to fill codec context");
+		goto fail;
+	}
     CodecCtx->get_format = get_hw_format;
     av_opt_set_int(CodecCtx, "refcounted_frames", 1, 0);
 	// open hardware device
@@ -301,8 +333,10 @@ void GS_Open(char *filename) {
 	}
     CodecCtx->hw_device_ctx = av_buffer_ref(HWDevCtx);
     // open codec
-	if (avcodec_open2(CodecCtx, pCodec, NULL) < 0)
-		mexErrMsgTxt("Failed to open codec");
+	if (avcodec_open2(CodecCtx, pCodec, NULL) < 0) {
+		mexWarnMsgTxt("Failed to open codec");
+		goto fail;
+	}
 	if (!av_reduce(
 		&(Stream->display_aspect_ratio.num),
 		&(Stream->display_aspect_ratio.den),
@@ -313,17 +347,23 @@ void GS_Open(char *filename) {
 	// allocate buffer
 	// input buffer
     pkt = av_packet_alloc();
-	if (!pkt)
-		mexErrMsgTxt("Failed to allocate input buffer");
+	if (!pkt) {
+		mexWarnMsgTxt("Failed to allocate input buffer");
+		goto fail;
+	}
     pkt->data = NULL;
     pkt->size = 0;
 	// decoded buffer
 	frame = av_frame_alloc();
-	if (!frame)
-		mexErrMsgTxt("Failed to allocate decode buffer");
+	if (!frame) {
+		mexWarnMsgTxt("Failed to allocate decode buffer");
+		goto fail;
+	}
     hwframe = av_frame_alloc();
-	if (!frame)
-		mexErrMsgTxt("Failed to allocate hardware decode buffer");
+	if (!frame) {
+		mexWarnMsgTxt("Failed to allocate hardware decode buffer");
+		goto fallback;
+	}
 	// output buffer
 	src_w = CodecCtx->width;
 	src_h = CodecCtx->height;
@@ -376,7 +416,7 @@ void GS_Open(char *filename) {
     if (av_hwframe_transfer_get_formats(hwframe->hw_frames_ctx,
                             AV_HWFRAME_TRANSFER_DIRECTION_FROM,
                             &src_pix_fmts,0) < 0) {
-        mexErrMsgTxt("Failed to get valid source pixel format");
+        mexWarnMsgTxt("Failed to get valid source pixel format");
 		goto fallback;
 	}
     for (i=0;;i++)
@@ -389,28 +429,36 @@ void GS_Open(char *filename) {
         }
     av_freep(&src_pix_fmts);
     frame->format = src_pix_fmt;
-    if (av_seek_frame(FormatCtx, StreamIdx, Stream->first_dts, AVSEEK_FLAG_BACKWARD) < 0)
-        mexErrMsgTxt("Failed to seek to the very beginning");
+    if (av_seek_frame(FormatCtx, StreamIdx, Stream->first_dts, AVSEEK_FLAG_BACKWARD) < 0) {
+        mexWarnMsgTxt("Failed to seek to the very beginning");
+		goto fail;
+	}
     else avcodec_flush_buffers(CodecCtx);
     // create swscale ctx
 	SwsCtx = sws_getContext(src_w, src_h, src_pix_fmt, 
 							dst_w, dst_h, dst_pix_fmt, 
 							SWS_BILINEAR, NULL, NULL, NULL);
-	if (!SwsCtx)
-		mexErrMsgTxt("Impossible to convert source to target pix_fmt");
+	if (!SwsCtx) {
+		mexWarnMsgTxt("Impossible to convert source to target pix_fmt");
+		goto fail;
+	}
     // for pts calculation
     b = Stream->avg_frame_rate.den * Stream->time_base.den;
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
 	if (CodecCtx->refs && CodecCtx->gop_size)
         steps = CodecCtx->refs * CodecCtx->gop_size;
     mexLock();
-    return;
+    return 1;
 
 	fallback:
 	mexWarnMsgTxt("Hardware acceleration failed, fallback to software mode");
 	GS_Close();
 	HwAccel = false;
 	return GS_Open_sw(filename);
+
+	fail:
+	GS_Close();
+	return FFMAT_ERR_OPEN;
 }
 
 void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
@@ -483,14 +531,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		else if (!strcasecmp(pixfmt_str,"RGB"))	    dst_pix_fmt = AV_PIX_FMT_RGB24;
 		else if (!strcasecmp(pixfmt_str,"YUV"))	    dst_pix_fmt = AV_PIX_FMT_YUV444P;
 		else									    mexErrMsgTxt("Invalid output pixel format.");
-		GS_Open(FileName);
+		*Status = GS_Open(FileName);
 		mxFree(FileName);
 		if (nrhs>=5) mxFree(pixfmt_str);
 	}else if (!strncasecmp(FunctionName, "getprop", 3)) {
 		if (nlhs != 2)
 			mexErrMsgTxt("'getprop' command must have 2 output arguments");
 		if (!FormatCtx) {
-			*Status = -5;
+			*Status = FFMAT_ERR_CLOSED;
 			plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 		}else {
 			const char * propname[] = {"FrameRate","Height","Width","PixFmt","Duration","TotalFrames",
@@ -565,11 +613,11 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			mexErrMsgTxt("'readframe' command must have 2 output arguments");
 		// read, decode and rescale frame
 		if (!FormatCtx) {
-			*Status = -5;
+			*Status = FFMAT_ERR_CLOSED;
 			plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 		}else {
 			*Status = GS_Read();
-			if (*Status > -1) {
+			if (*Status > FFMAT_ERR) {
 				sws_scale(SwsCtx, frame->data, frame->linesize, 0, src_h, rawdata, rawdata_linesize);
 				mexCallMATLAB(1,&plhs[1],2,mxin,"permute");
 			}else {
@@ -585,7 +633,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			mexErrMsgTxt("The first argument after 'pickframe' command must be numeric, denoting frame number");
 		// seek, read, decode and rescale frame
 		if (!FormatCtx) {
-			*Status = -5;
+			*Status = FFMAT_ERR_CLOSED;
 			plhs[1] = mxCreateNumericMatrix(0,0,mxDOUBLE_CLASS,mxREAL);
 		}else {
 			int64_t FrameNum = (int64_t) mxGetScalar(prhs[1]);
@@ -593,7 +641,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 				*Status = GS_Pick(((FrameNum-steps)>0)?(FrameNum-steps):1, FrameNum, 0);
 			else
 				*Status = GS_Pick(FrameNum, FrameNum, 0);
-			if (*Status > -1) {
+			if (*Status > FFMAT_ERR) {
 				sws_scale(SwsCtx, frame->data, frame->linesize, 0, src_h, rawdata, rawdata_linesize);
 				mexCallMATLAB(1,&plhs[1],2,mxin,"permute");
 			}else {
@@ -606,13 +654,14 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		if (!mxIsNumeric(prhs[1]))
 			mexErrMsgTxt("The first argument after 'seekframe' command must be numeric, denoting frame number");
 		// seek to frame
-		if (!FormatCtx) *Status = -5;
+		if (!FormatCtx) *Status = FFMAT_ERR_CLOSED;
 		else {
 			int64_t FrameNum = (int64_t) mxGetScalar(prhs[1])-1;
 			if (FrameNum == 0)
 				if (av_seek_frame(FormatCtx, StreamIdx, Stream->first_dts, AVSEEK_FLAG_BACKWARD) < 0)
-					*Status = -3;
+					*Status = FFMAT_ERR_SEEK;
 			    else {
+					av_packet_unref(pkt);
 					avcodec_flush_buffers(CodecCtx);
 					*Status = (Stream->first_dts-Stream->start_time) * av_q2d(Stream->time_base);
 				}
@@ -624,7 +673,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			}
 		}
 	}else if (!strncasecmp(FunctionName, "closevideo", 5)) {
-		GS_Close();
+		*Status = GS_Close();
 	}else {
 		mexErrMsgTxt("Invalid ffmat command");
 	}
