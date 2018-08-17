@@ -1,33 +1,4 @@
-#include "libavcodec/avcodec.h"
-#include "libavformat/avformat.h"
-#include "libswscale/swscale.h"
-#include "libavutil/imgutils.h"
-#include "libavutil/hwcontext.h"
-#include "libavutil/opt.h"
-
-#include <string.h>
-#include "mex.h"
-#include "crossplatform.h"
-
-static AVFormatContext *FormatCtx = NULL;
-static AVCodecContext *CodecCtx = NULL;
-static AVStream *Stream = NULL;
-static struct SwsContext *SwsCtx = NULL;
-static int StreamIdx = -1;
-static int src_w, src_h, dst_w, dst_h;
-static enum AVPixelFormat dst_pix_fmt;
-static int64_t b, c;
-static int steps = 24;
-
-static bool HwAccel = true;
-static enum AVPixelFormat HWPixFmt;
-
-static mxArray *mxin[2];
-static uint8_t *rawdata[4] = {NULL};
-static int rawdata_linesize[4] = {0};
-static AVFrame *frame = NULL;
-static AVFrame *hwframe = NULL;
-static AVPacket *pkt;
+#include "ffmat.h"
 
 void GS_Open_sw(char *filename) {
 	AVCodec *pCodec = NULL;
@@ -209,8 +180,8 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 	int sret;
 	int64_t SeekPts,TargetPts;
 	// caculate pts of the targetframe
-    if (SeekFrame<1 || TargetFrame<1) return -3;
-	else TargetPts = av_rescale(TargetFrame-1,b,c) + Stream->start_time;
+    if (SeekFrame<1 || TargetFrame<1) return -5;
+	TargetPts = av_rescale(TargetFrame-1,b,c) + Stream->start_time;
 	// seek to the seekframe
 	if (TargetPts == frame->pts)
 		return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
@@ -218,7 +189,7 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 		if (SeekFrame<steps) SeekPts = Stream->first_dts;
     	else SeekPts = av_rescale(SeekFrame-1,b,c) + Stream->start_time;
 		sret = av_seek_frame(FormatCtx, StreamIdx, SeekPts, AVSEEK_FLAG_BACKWARD);
-		if (sret < 0) return -3;
+		if (sret < 0) return -5;
 		av_packet_unref(pkt);
 		avcodec_flush_buffers(CodecCtx);
 	}
@@ -226,12 +197,9 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 	do dret = GS_Read();
 	while (dret > -1 && frame->pts < TargetPts);
 	if (frame->pts == TargetPts) return dret;
-    else if (dret <= -1)
-        if (FailCount<3) return GS_Pick((SeekFrame-2)>0 ? (SeekFrame-2):1, TargetFrame,FailCount++);
-        else return dret;
-	else
-        if (FailCount<10) return GS_Pick((SeekFrame-4)>0 ? (SeekFrame-4):1, TargetFrame,FailCount++);
-        else return -3;
+    else if (FailCount<15) 
+		return GS_Pick((SeekFrame-2)>0 ? (SeekFrame-2):1, TargetFrame, ++FailCount);
+    else return -5;
 }
 
 void GS_Close() {
@@ -468,24 +436,29 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		}
 		// parse input parameters
 		switch (nrhs) {
+			case 6:
+				if (!mxIsLogicalScalar (prhs[5]))
+					mexErrMsgTxt("The fifth argument after 'open' command must be logical scalar, denoting whether to use hardware acceleration");
+				else
+					HwAccel = (bool) *mxGetLogicals(prhs[5]);
 			case 5:
 				if (!mxIsChar(prhs[4]))
-					mexErrMsgTxt("The fourth argument after 'open' command must be string, representing output pixel format");
+					mexErrMsgTxt("The fourth argument after 'open' command must be string, denoting output pixel format");
 				else
 					pixfmt_str = mxArrayToString(prhs[4]);
 			case 4:
 				if (!mxIsNumeric(prhs[3]))
-					mexErrMsgTxt("The third argument after 'open' command must be numeric type, representing height of the output frame");
+					mexErrMsgTxt("The third argument after 'open' command must be numeric type, denoting height of the output frame");
 				else
 					dst_h = (int) mxGetScalar(prhs[3]);
 			case 3:
 				if (!mxIsNumeric(prhs[2]))
-					mexErrMsgTxt("The second argument after 'open' command must be numeric type, representing width of the output frame");
+					mexErrMsgTxt("The second argument after 'open' command must be numeric type, denoting width of the output frame");
 				else
 					dst_w = (int) mxGetScalar(prhs[2]);
 			case 2:
 				if (!mxIsChar(prhs[1]))
-					mexErrMsgTxt("The first argument after 'open' command must be string, representing filename");
+					mexErrMsgTxt("The first argument after 'open' command must be string, denoting filename");
 				else
 					FileName = mxArrayToString(prhs[1]);
 			    break;
@@ -609,7 +582,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		if (nrhs != 2)
 			mexErrMsgTxt("'pickframe' command must have 1 input arguments");
 		if (!mxIsNumeric(prhs[1]))
-			mexErrMsgTxt("The first argument after 'pickframe' command must be numeric, representing frame number");
+			mexErrMsgTxt("The first argument after 'pickframe' command must be numeric, denoting frame number");
 		// seek, read, decode and rescale frame
 		if (!FormatCtx) {
 			*Status = -5;
@@ -631,7 +604,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 		if (nrhs != 2)
 			mexErrMsgTxt("'seekframe' command must have 1 input arguments");
 		if (!mxIsNumeric(prhs[1]))
-			mexErrMsgTxt("The first argument after 'seekframe' command must be numeric, representing frame number");
+			mexErrMsgTxt("The first argument after 'seekframe' command must be numeric, denoting frame number");
 		// seek to frame
 		if (!FormatCtx) *Status = -5;
 		else {

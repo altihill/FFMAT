@@ -23,6 +23,7 @@
     - R2018a 64bit on Windows
 
 ## Change Log
+
 - version 4.0
   - allow fallback to software mode, if hardware acceleration fails
   - significantly improved speed, achieved by reduced unnecessary memcopy
@@ -99,16 +100,16 @@ For different command, argument number and output number may be variant.
     - `Status = ffmat('openvideo');`
     - `Status = ffmat('openvideo',filename);`
     - `Status = ffmat('openvideo',filename,outputW);`
-    - `Status = ffmat('openvideo',filename,   0   ,outputH);`
     - `Status = ffmat('openvideo',filename,outputW,outputH);`
-    - `Status = ffmat('openvideo',filename,   0   ,   0   ,outputPixFmt);`
-    - `Status = ffmat('openvideo',filename,   0   ,outputH,outputPixFmt);`
-    - `Status = ffmat('openvideo',filename,outputW,   0   ,outputPixFmt);`
     - `Status = ffmat('openvideo',filename,outputW,outputH,outputPixFmt);`
+    - `Status = ffmat('openvideo',filename,outputW,outputH,outputPixFmt,EnableHWAccel);`
   - function
     - Open video file, should be called before using other commands.
   - input arguments
-    - *filename* is the whole videofile name, and should be string. *outputW*, *outputH* are the output resolution, and should be numeric. If one of those are not given or zero, default value would be applied. *outputPixFmt* is the output pixel format, and should be string. **'Gray','RGB','YUV'** are all the valid value currently.
+    - *filename* is the whole videofile name, and should be string. 
+    - *outputW*, *outputH* are the output resolutions, and should be numeric. If one of those are not given or zero, default value(s) will be applied. 
+    - *outputPixFmt* is the output pixel format, and should be string. 'Gray','RGB','YUV' are all the valid value currently. Default is 'Gray'.
+    - *EnableHWAccel* denotes whether to enable hardware acceleration. Default is true.
   - return
     - *Status* is 1 if success. Otherwise it is negative.
 - getprop
@@ -117,14 +118,16 @@ For different command, argument number and output number may be variant.
   - function
     - Get the property values of the opened video file.
   - return
-    - *Status* is 1 if success. Otherwise it is negative. *Property* is a 1x1 structure array, while its fields contains the property values of the video file.
+    - *Status* is 1 if success. Otherwise it is negative. 
+    - *Property* is a 1x1 structure array, while its fields contains the property values of the video file.
 - readframe
   - syntax
     - `[TimeStamp, RawImage] = ffmat('readframe');`
   - function
     - Read and decode the next frame.
   - return
-    - *TimeStamp* is the timestamp of the returned frame in seconds, if success. Otherwise it is negative. -1 means end of the file. -2 means decoding error. *RawImage* is a HxW/HxWx3 uint8 array, which is the decoded image.
+    - *TimeStamp* is the timestamp of the returned frame in seconds, if success. Otherwise it is negative. -1 means end of the file. -2 means decoding error. 
+    - *RawImage* is a HxW/HxWx3 uint8 array, which is the decoded image, if success. Otherwise it is empty.
 - pickframe
   - syntax
     - `[TimeStamp, RawImage] = ffmat('pickframe',frameidx);`
@@ -133,7 +136,8 @@ For different command, argument number and output number may be variant.
   - input arguments
     - frameidx is the index of the required frame. The frame index starts from 1, not 0.
   - return
-    - *TimeStamp* is the timestamp of the returned frame in seconds, if success. Otherwise it is negative. -1 means end of the file. -2 means decoding error. -3 means seeking error. *RawImage* is an HxW/HxWx3 uint8 array, which is the decoded image.
+    - *TimeStamp* is the timestamp of the returned frame in seconds, if success. Otherwise it is negative. -1 means end of the file. -2 means decoding error. -3 means seeking error.
+    - *RawImage* is an HxW/HxWx3 uint8 array, which is the decoded image, if success. Otherwise it is empty.
 - seekframe
   - syntax
     - `TimeStamp = ffmat('seekframe',frameidx);`

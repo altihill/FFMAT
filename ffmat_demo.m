@@ -5,7 +5,7 @@ sz = [720 1280 1];% [720 1280 3]
 [vfn,vpn] = uigetfile('*.*','Please select the video file');
 
 % open video
-ret = ffmat('openvideo',fullfile(vpn,vfn),sz(2),sz(1),pixfmt);
+ret = ffmat('openvideo',fullfile(vpn,vfn),sz(2),sz(1),pixfmt,true);
 if ret<0
     error('File Open Failed');
 end
