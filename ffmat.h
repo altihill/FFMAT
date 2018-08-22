@@ -19,7 +19,6 @@
 #define FFMAT_ERR_SEEK -6
 #define FFMAT_ERR_CLOSE -7
 #define FFMAT_ERR_CLOSED -8
-
 // demuxing and decoding contexts
 static AVFormatContext *FormatCtx = NULL;
 static AVCodecContext *CodecCtx = NULL;
