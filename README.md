@@ -3,15 +3,15 @@
 **FFMAT**, which is short for "*ffmpeg for MATLAB*", is a fast and easy-to-use video decoding function for MATLAB.
 
 - [FFMAT](#ffmat)
-  - [Meta info](#meta-info)
-  - [Change Log](#change-log)
-  - [Compilation Guide](#compilation-guide)
-    - [Requirements](#requirements)
-    - [Compilation Steps](#compilation-steps)
-  - [Usage](#usage)
-    - [General Syntax](#general-syntax)
-    - [Command List](#command-list)
-  - [Acknowledgement](#acknowledgement)
+    - [Meta info](#meta-info)
+    - [Change Log](#change-log)
+    - [Compilation Guide](#compilation-guide)
+        - [Requirements](#requirements)
+        - [Compilation Steps](#compilation-steps)
+    - [Usage](#usage)
+        - [General Syntax](#general-syntax)
+        - [Command List](#command-list)
+    - [Acknowledgement](#acknowledgement)
 
 ## Meta info
 
