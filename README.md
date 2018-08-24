@@ -38,10 +38,10 @@
     - fix bug: fix crash after multiple 'closevideo' calls
 - version 3.0
     - update to ffmpeg 4.0
-	    - support hardware acceleration: 
-		    - cuda (NVIDIA), 
-		    - d3d11va (DirectX11), 
-		    - dxva2 (DirectX9)
+    - support hardware acceleration: 
+        - cuda (NVIDIA), 
+        - d3d11va (DirectX11), 
+        - dxva2 (DirectX9)
 	- openvideo command can be called without any additional parameters
 	- fix bug: memory overflow
 	- fix bug: Height and width props reflect the real output dimensions.
