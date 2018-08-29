@@ -251,7 +251,6 @@ int GS_Open(char *filename) {
 	AVCodec *pCodec = NULL;
     AVCodecParameters *pCodecPara = NULL;
     AVBufferRef *HWDevCtx = NULL;
-    AVBufferRef *HWFrameCtx = NULL;
     enum AVPixelFormat *src_pix_fmts = NULL;
     enum AVPixelFormat src_pix_fmt;
     int i, j;
