@@ -1,3 +1,8 @@
+// This header file is slightly modified and included in this project 
+// to enable some hidden FFmpeg API.
+// Gao Shan
+// 2018
+// All copyrights remain with FFmpeg.
 /*
  * Copyright (C) 2001-2011 Michael Niedermayer <michaelni@gmx.at>
  *

@@ -23,6 +23,7 @@
     - R2018a 64bit on Windows
 
 ## Change Log
+
 - version 4.1
     - significantly improved performance using faster bilinear resize algorism
     - fix bug: int64 type conversion
