@@ -1,16 +1,12 @@
-//
 //  crossplatform.h
-//  
-//
-//  Created by Gao Shan on 2017/10/19.
-//
+//  Created by Gao Shan
 
 #ifndef crossplatform_h
 #define crossplatform_h
 
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef _MSC_VER
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
 #endif
 
-#endif /* crossplatform_h */
+#endif

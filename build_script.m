@@ -1,4 +1,3 @@
-sourcepath = '/usr/local';
-mex('ffmat.cpp',['-I' sourcepath '/include'],['-L' sourcepath '/lib'],...
-    '-lavcodec','-lavformat','-lavutil','-lswscale');
-
+[sourcepath,~,~] = fileparts(which('ffmat.c'));
+mex('ffmat.c',['-I' sourcepath '/include'],['-L' sourcepath '/lib'],...
+    '-lavcodec','-lavformat','-lavutil','-lswscale','-v');

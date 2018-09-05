@@ -1,72 +1,106 @@
-% ffmat_demo by Gao Shan, 2017
+% ffmat_demo by Gao Shan, 2018
 
-[VideoFileName,VideoPathName] = uigetfile('*.*','Please select the video file');
-Output_H = 720;
-Output_W = 1280;
+pixfmt = 'GRAY'; % 'RGB','YUV'
+sz = [720 1280 1];% [720 1280 3]
+[vfn,vpn] = uigetfile('*.*','Please select the video file');
 
 % open video
-Status = ffmat('openvideo',[VideoPathName VideoFileName],Output_W,Output_H,'Gray');
-if Status<0
+ret = ffmat('openvideo',fullfile(vpn,vfn),sz(2),sz(1),pixfmt,true);
+if ret<0
     error('File Open Failed');
 end
 
 % get property
-[Status,Prop] = ffmat('getprop');
-if Status>0
-    disp(Prop);
+[ret,prop] = ffmat('getprop');
+if ret>0
+    disp(prop);
+else
+    error('Property Get Failed');
 end
 
 % sequentially read frame
-NumFrame = 100;
+n = 100;
 figure;
-hi = imshow(zeros(Output_H,Output_W,'uint8'));
-ts = zeros(NumFrame,1);
-tic
-for ii = 1:NumFrame
-    [ts(ii),RawData] = ffmat('readframe');
-    set(hi,'CData',RawData);
-    pause(realmin);
+hi = imshow(zeros(sz,'uint8'));
+ht = text(0,-10,'Timestamp: 0.00 s');
+ts = zeros(n,1);
+for ii = 1:n
+    [ts(ii),frame] = ffmat('readframe');
+    if ts(ii)>-1
+        set(hi,'CData',frame);
+        set(ht,'String',sprintf('Timestamp: %.2f s',ts(ii)));
+        drawnow;
+    else
+        error('Frame Read Failed');
+    end
 end
-toc
-figure,plot(ts);
+[~,prop] = ffmat('getprop');
+figure;
+plot(prop.NextFrame-n:prop.NextFrame-1,ts,'.');
+xlabel('Frame Number');
+ylabel('Timestamp (s)');
+drawnow;
 
-% speed test
-NumFrame = 1000;
-ts = zeros(NumFrame,1);
+% sequential speed test
+n = 1000;
 tic
-for ii = 1:NumFrame
-    [ts(ii),~] = ffmat('readframe');
+for ii = 1:n
+    [~,~] = ffmat('readframe');
 end
 timespend = toc;
-disp(['Reading FPS: ' num2str(NumFrame/timespend)]);
-figure,plot(ts);
+disp(['Sequential reading FPS: ' num2str(n/timespend)]);
 
-% pick frame
-NumFrame = 100;
-seed = round(rand(NumFrame,1)*Prop.TotalFrames)+1;
+% sparsely pick frame
+n = 100;
+[~,prop] = ffmat('getprop');
+seed = randi(prop.TotalFrames,n,1);
 figure;
-hi = imshow(zeros(Output_H,Output_W,'uint8'));
-ts = zeros(NumFrame,1);
-tic
-for ii = 1:NumFrame
-    [ts(ii),RawData] = ffmat('pickframe',seed(ii));
-    set(hi,'CData',RawData);
-    pause(realmin);
+hi = imshow(zeros(sz,'uint8'));
+ht = text(0,-10,'Timestamp: 0.00 s');
+ts = zeros(n,1);
+for ii = 1:n
+    [ts(ii),frame] = ffmat('pickframe',seed(ii));
+    if ts(ii)>-1
+        set(hi,'CData',frame);
+        set(ht,'String',sprintf('Timestamp: %.2f s',ts(ii)));
+        drawnow;
+    else
+        error('Frame Pick Failed');
+    end
 end
-toc
-figure,plot(ts./max(ts));
-hold on,plot(seed./max(seed)-0.01);
+figure;
+xlim([0 n+1]);
+yyaxis left, plot(seed,'o'), ylabel('Frame Number'), ylim([0 prop.TotalFrames]);
+yyaxis right, plot(ts,'.'), ylabel('Timestamp (s)'), ylim([0 prop.Duration]);
+drawnow;
+
+% sparse speed test
+n = 100;
+[~,prop] = ffmat('getprop');
+seed = randi(prop.TotalFrames,n,1);
+tic
+for ii = 1:n
+    [~,~] = ffmat('pickframe',seed(ii));
+end
+timespend = toc;
+disp(['Sparse reading FPS: ' num2str(n/timespend)]);
 
 % seek to specific frame
-TargetFrame = 16;
-CurrentTime = ffmat('seekframe',TargetFrame);
-[~,Prop] = ffmat('getprop');
-fprintf('target frame: %d\nnext frame: %d\n',TargetFrame,Prop.NextFrame);
-[ts,RawData] = ffmat('readframe');
-figure,imshow(RawData);
+TargetFrame = randi(prop.TotalFrames);
+ts = ffmat('seekframe',TargetFrame);
+if ts > -1
+    [~,prop] = ffmat('getprop');
+    [ts,frame] = ffmat('readframe');
+    figure,imshow(frame);
+    text(0,-10,sprintf(...
+        'Seek Target: %d  Frame Got: %d  Frame timestamp: %.2f s',...
+        TargetFrame,prop.NextFrame,ts));
+else
+    error('Frame Seek Failed');
+end
 
 % close video
-Status = ffmat('closevideo');
-if Status<0
+ret = ffmat('closevideo');
+if ret<0
     error('File Close Failed');
 end
