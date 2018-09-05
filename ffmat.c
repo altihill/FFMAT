@@ -3,7 +3,6 @@
 int GS_Open_sw(char *filename) {
 	AVCodec *pCodec = NULL;
     AVCodecParameters *pCodecPara = NULL;
-    int i, j;
 	uint8_t *pData = NULL;
 	mwSize dims[3] = {0};
 	// open input file, and allocate format context
@@ -117,7 +116,7 @@ int GS_Open_sw(char *filename) {
 		mexWarnMsgTxt("Impossible to convert source to target pix_fmt");
 		goto fail;
 	}
-    // for pts calculation
+	// for pts calculation
     b = Stream->avg_frame_rate.den * Stream->time_base.den;
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
 	if (CodecCtx->refs && CodecCtx->gop_size)
@@ -158,13 +157,13 @@ double GS_Read_sw() {
 	if (ValidLoad > FFMAT_ERR){
 		GotFrame = avcodec_receive_frame(CodecCtx, frame);
 		if (GotFrame == 0) 
-			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
+			return (int)(frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
 		else if (GotFrame == AVERROR(EAGAIN)) return GS_Read_sw();
 		else return FFMAT_ERR_DECODE;
 	}else if(ValidLoad == FFMAT_ERR_READ){
 		GotFrame = avcodec_receive_frame(CodecCtx, frame);
 		if (GotFrame == 0)
-			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
+			return (int)(frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
 		else if (GotFrame == AVERROR(EAGAIN)) return ValidLoad;
 		else return FFMAT_ERR_DECODE;
 	}else return ValidLoad;
@@ -178,7 +177,7 @@ double GS_Read_hw() {
 		if (GotFrame == 0) {
             if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return FFMAT_ERR_HWT;
             else frame->pts = hwframe->pts;
-			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
+			return (int)(frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
 		}else if (GotFrame == AVERROR(EAGAIN)) return GS_Read_hw();
 		else return FFMAT_ERR_DECODE;
 	}else if(ValidLoad == FFMAT_ERR_READ){
@@ -186,7 +185,7 @@ double GS_Read_hw() {
 		if (GotFrame == 0) {
             if (av_hwframe_transfer_data(frame, hwframe, 0) < 0) return FFMAT_ERR_HWT;
             else frame->pts = hwframe->pts;
-			return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
+			return (int)(frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
 		}else if (GotFrame == AVERROR(EAGAIN)) return ValidLoad;
 		else return FFMAT_ERR_DECODE;
 	}else return ValidLoad;
@@ -206,7 +205,7 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 	TargetPts = av_rescale(TargetFrame-1,b,c) + Stream->start_time;
 	// seek to the seekframe
 	if (TargetPts == frame->pts)
-		return (frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
+		return (int)(frame->pts - Stream->start_time) * av_q2d(Stream->time_base);
 	else if (TargetPts<frame->pts || TargetPts>frame->pts+av_rescale(steps,b,c)) { 
 		if (SeekFrame<steps) SeekPts = Stream->first_dts;
     	else SeekPts = av_rescale(SeekFrame-1,b,c) + Stream->start_time;
@@ -226,7 +225,6 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 
 int GS_Close() {
     if (mexIsLocked())				mexUnlock();
-	else 							return 1;
 	mxDestroyArray(mxin[0]);
 	mxDestroyArray(mxin[1]);
     if (CodecCtx->hw_device_ctx)    av_buffer_unref(&CodecCtx->hw_device_ctx);
@@ -436,12 +434,12 @@ int GS_Open(char *filename) {
     // create swscale ctx
 	SwsCtx = sws_getContext(src_w, src_h, src_pix_fmt, 
 							dst_w, dst_h, dst_pix_fmt, 
-							SWS_BILINEAR, NULL, NULL, NULL);
+							SWS_FAST_BILINEAR, NULL, NULL, NULL);
 	if (!SwsCtx) {
 		mexWarnMsgTxt("Impossible to convert source to target pix_fmt");
 		goto fail;
 	}
-    // for pts calculation
+	// for pts calculation
     b = Stream->avg_frame_rate.den * Stream->time_base.den;
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
 	if (CodecCtx->refs && CodecCtx->gop_size)
@@ -551,12 +549,12 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("FrameRate may not be valid.");
 			// height
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-			*(mxGetPr(mxparaval)) = (double) dst_h;
+			*(mxGetPr(mxparaval)) = dst_h;
 			mxSetFieldByNumber(plhs[1], 0, 1, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("Height may not be valid.");
 			// width
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-			*(mxGetPr(mxparaval)) = (double) dst_w;
+			*(mxGetPr(mxparaval)) = dst_w;
 			mxSetFieldByNumber(plhs[1], 0, 2, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("Width may not be valid.");
 			// pixfmt
@@ -572,32 +570,35 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			}
 			// duration
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-			*(mxGetPr(mxparaval)) = (double) Stream->duration * av_q2d(Stream->time_base);
+			*(mxGetPr(mxparaval)) = (int) Stream->duration * av_q2d(Stream->time_base);
 			mxSetFieldByNumber(plhs[1], 0, 4, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("Duration may not be valid.");
 			// total frames
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
 			AVRational frametime = av_inv_q(Stream->avg_frame_rate);
-			if (Stream->nb_frames > 0) *(mxGetPr(mxparaval)) = (double) Stream->nb_frames;
-			else *(mxGetPr(mxparaval)) = (double) av_rescale_q(Stream->duration, Stream->time_base, frametime)-1;
+			if (Stream->nb_frames > 0) *(mxGetPr(mxparaval)) = (int) Stream->nb_frames;
+			else if (Stream->duration > 0) *(mxGetPr(mxparaval)) = (int) av_rescale_q(Stream->duration, Stream->time_base, frametime)-1;
+			else *(mxGetPr(mxparaval)) = 0;
 			mxSetFieldByNumber(plhs[1], 0, 5, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("TotalFrames may not be valid.");
 			// next frame
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-			if (CodecCtx->pts_correction_last_pts >= Stream->start_time && 
-			    CodecCtx->pts_correction_last_pts < Stream->duration + Stream->start_time)
-				*(mxGetPr(mxparaval)) = (double) av_rescale_q(CodecCtx->pts_correction_last_pts - Stream->start_time, 
-												 Stream->time_base, frametime) + 2;
-			else if(CodecCtx->pts_correction_last_pts == Stream->duration + Stream->start_time) {
+			if (CodecCtx->pts_correction_last_pts < Stream->start_time) *(mxGetPr(mxparaval)) = 1;
+			else if (CodecCtx->pts_correction_last_pts >= Stream->start_time && 
+			    	(CodecCtx->pts_correction_last_pts < Stream->duration + Stream->start_time ||
+					Stream->duration <= 0))
+				*(mxGetPr(mxparaval)) = (int) av_rescale_q(CodecCtx->pts_correction_last_pts - Stream->start_time, 
+												           Stream->time_base, frametime) + 2;
+			else if(CodecCtx->pts_correction_last_pts >= Stream->duration + Stream->start_time) {
 				*(mxGetPr(mxparaval)) = -1;
 				mexWarnMsgTxt("NextFrame is invalid because it is the end of the video.");
-			}else *(mxGetPr(mxparaval)) = 1;
+			}
 			mxSetFieldByNumber(plhs[1], 0, 6, mxparaval);
 			// file name
 			mxSetFieldByNumber(plhs[1], 0, 7, mxCreateString(FormatCtx->filename));
 			// bit rate
 			mxparaval = mxCreateNumericMatrix(1,1,mxDOUBLE_CLASS,mxREAL);
-			*(mxGetPr(mxparaval)) = (double) FormatCtx->bit_rate;
+			*(mxGetPr(mxparaval)) = (int) FormatCtx->bit_rate;
 			mxSetFieldByNumber(plhs[1], 0, 8, mxparaval);
 			if (*(mxGetPr(mxparaval))<=0) mexWarnMsgTxt("BitRate may not be valid.");
 			// aspect ratio
@@ -662,7 +663,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 			    else {
 					av_packet_unref(pkt);
 					avcodec_flush_buffers(CodecCtx);
-					*Status = (Stream->first_dts-Stream->start_time) * av_q2d(Stream->time_base);
+					*Status = (int) (Stream->first_dts-Stream->start_time) * av_q2d(Stream->time_base);
 				}
 			else {
 				if (CodecCtx->codec_id == AV_CODEC_ID_H264 || CodecCtx->codec_id == AV_CODEC_ID_H265)

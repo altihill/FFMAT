@@ -1,3 +1,3 @@
 [sourcepath,~,~] = fileparts(which('ffmat.c'));
 mex('ffmat.c',['-I' sourcepath '/include'],['-L' sourcepath '/lib'],...
-    '-lavcodec','-lavformat','-lavutil','-lswscale');
+    '-lavcodec','-lavformat','-lavutil','-lswscale','-v');

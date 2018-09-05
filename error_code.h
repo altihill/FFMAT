@@ -1,0 +1,12 @@
+#define FFMAT_ERR -1
+#define FFMAT_ERR_OPEN -2
+#define FFMAT_ERR_ALLOC -3
+#define FFMAT_ERR_READ -4
+#define FFMAT_ERR_FEED -5
+#define FFMAT_ERR_DECODE -6
+#define FFMAT_ERR_ENCODE -7
+#define FFMAT_ERR_WRITE -8
+#define FFMAT_ERR_HWT -9
+#define FFMAT_ERR_SEEK -10
+#define FFMAT_ERR_CLOSE -11
+#define FFMAT_ERR_CLOSED -12
