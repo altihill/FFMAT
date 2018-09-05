@@ -23,7 +23,10 @@
     - R2018a 64bit on Windows
 
 ## Change Log
-
+- version 4.1
+    - significantly improved performance using faster bilinear resize algorism
+    - fix bug: int64 type conversion
+    - fix bug: color range mismatch using swscale
 - version 4.0
     - allow fallback to software mode, if hardware acceleration fails
     - significantly improved speed, achieved by reduced unnecessary memcopy
