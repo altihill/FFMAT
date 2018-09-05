@@ -109,11 +109,17 @@ int GS_Open_sw(char *filename) {
 	mexMakeArrayPersistent(mxin[0]);
 	mexMakeArrayPersistent(mxin[1]);
     // create swscale ctx
-	SwsCtx = sws_getContext(src_w, src_h, CodecCtx->pix_fmt, 
-							dst_w, dst_h, dst_pix_fmt, 
-							SWS_BILINEAR, NULL, NULL, NULL);
+	SwsCtx = sws_alloc_set_opts(src_w, src_h, CodecCtx->pix_fmt, 
+								dst_w, dst_h, dst_pix_fmt, 
+								SWS_FAST_BILINEAR, NULL);
 	if (!SwsCtx) {
 		mexWarnMsgTxt("Impossible to convert source to target pix_fmt");
+		goto fail;
+	}
+	if (Stream->codecpar->color_range = AVCOL_RANGE_JPEG) SwsCtx->srcRange = 1;
+	SwsCtx->dstRange = 1;
+	if (sws_init_context(SwsCtx, NULL, NULL) < 0) {
+		mexWarnMsgTxt("Failed to initiate sws context");
 		goto fail;
 	}
 	// for pts calculation
@@ -432,11 +438,17 @@ int GS_Open(char *filename) {
 	}
     else avcodec_flush_buffers(CodecCtx);
     // create swscale ctx
-	SwsCtx = sws_getContext(src_w, src_h, src_pix_fmt, 
-							dst_w, dst_h, dst_pix_fmt, 
-							SWS_FAST_BILINEAR, NULL, NULL, NULL);
+	SwsCtx = sws_alloc_set_opts(src_w, src_h, src_pix_fmt, 
+								dst_w, dst_h, dst_pix_fmt, 
+								SWS_FAST_BILINEAR, NULL);
 	if (!SwsCtx) {
 		mexWarnMsgTxt("Impossible to convert source to target pix_fmt");
+		goto fail;
+	}
+	if (Stream->codecpar->color_range = AVCOL_RANGE_JPEG) SwsCtx->srcRange = 1;
+	SwsCtx->dstRange = 1;
+	if (sws_init_context(SwsCtx, NULL, NULL) < 0) {
+		mexWarnMsgTxt("Failed to initiate sws context");
 		goto fail;
 	}
 	// for pts calculation

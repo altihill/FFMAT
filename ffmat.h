@@ -8,6 +8,7 @@
 #include "mex.h"
 #include "crossplatform.h"
 #include "error_code.h"
+#include "swscale_internal.h"
 // demuxing and decoding contexts
 static AVFormatContext *FormatCtx = NULL;
 static AVCodecContext *CodecCtx = NULL;
