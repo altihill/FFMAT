@@ -23,12 +23,12 @@ static int steps = 24;
 static bool HwAccel = true;
 static enum AVPixelFormat HWPixFmt;
 // buffers
-static mxArray *mxin[2];
+static mxArray *mxin[2] = {NULL};
 static uint8_t *rawdata[4] = {NULL};
 static int rawdata_linesize[4] = {0};
 static AVFrame *frame = NULL;
 static AVFrame *hwframe = NULL;
-static AVPacket *pkt;
+static AVPacket *pkt = NULL;
 // functions
 static enum AVPixelFormat get_hw_format(AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts);
 int GS_Open(char *filename);

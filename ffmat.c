@@ -127,7 +127,6 @@ int GS_Open_sw(char *filename) {
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
 	if (CodecCtx->refs && CodecCtx->gop_size)
         steps = CodecCtx->refs * CodecCtx->gop_size;
-    mexLock();
     return 1;
 
 	fail:
@@ -230,9 +229,8 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 }
 
 int GS_Close() {
-    if (mexIsLocked())				mexUnlock();
-	mxDestroyArray(mxin[0]);
-	mxDestroyArray(mxin[1]);
+	if (mxin[0])					mxDestroyArray(mxin[0]);
+	if (mxin[1])					mxDestroyArray(mxin[1]);
     if (CodecCtx->hw_device_ctx)    av_buffer_unref(&CodecCtx->hw_device_ctx);
 	if (CodecCtx) {
 		pkt->data = NULL;
@@ -264,16 +262,18 @@ int GS_Open(char *filename) {
     enum AVHWDeviceType type = AV_HWDEVICE_TYPE_NONE;
     enum AVHWDeviceType HWDevs[] = {
         AV_HWDEVICE_TYPE_CUDA,
-        AV_HWDEVICE_TYPE_D3D11VA,
-        AV_HWDEVICE_TYPE_DXVA2
+		AV_HWDEVICE_TYPE_DXVA2,
+        AV_HWDEVICE_TYPE_D3D11VA
     };
     bool HWDevFound[sizeof(HWDevs)] = {false};
     bool HWDevCodec[sizeof(HWDevs)] = {false};
     enum AVPixelFormat hw_pix_fmts[sizeof(HWDevs)] = {AV_HWDEVICE_TYPE_NONE};
     while((type = av_hwdevice_iterate_types(type)) != AV_HWDEVICE_TYPE_NONE)
         for (i=0;i<sizeof(HWDevs);i++)
-            if (type == HWDevs[i])
-                HWDevFound[i] = true;
+            if (type == HWDevs[i] && av_hwdevice_ctx_create(&HWDevCtx, HWDevs[i], NULL, NULL, 0) == 0) {
+				av_buffer_unref(&HWDevCtx);
+				HWDevFound[i] = true;
+			}
     for (i=0;i<sizeof(HWDevs) && !HWDevs[i];i++);
     if (i==sizeof(HWDevs)){
         mexWarnMsgTxt("No hardware acceleration device is found");
@@ -456,7 +456,6 @@ int GS_Open(char *filename) {
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
 	if (CodecCtx->refs && CodecCtx->gop_size)
         steps = CodecCtx->refs * CodecCtx->gop_size;
-    mexLock();
     return 1;
 
 	fallback:
