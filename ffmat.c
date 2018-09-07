@@ -518,6 +518,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 				else
 					FileName = mxArrayToString(prhs[1]);
 			    break;
+#if MX_API_VER >= 0x08000000
 			case 1:
 				mxArray *mxon[2];
 				mxArray *mxop[2] = {mxCreateString("*.*"),mxCreateString("Open Video File")};
@@ -532,6 +533,7 @@ void mexFunction(int nlhs, mxArray *plhs[], int nrhs, const mxArray *prhs[]) {
 				mxDestroyArray(mxop[1]);
 				mxDestroyArray(mxcn[0]);
 				break;
+#endif
 			default:
 				mexErrMsgTxt("'openvideo' command can have 0~4 additional arguments.");
 		}

@@ -1,13 +1,13 @@
+// other headers
+#include "crossplatform.h"
+#include <string.h>
+#include "mex.h"
+#include "error_code.h"
 // ffmpeg headers
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
 #include "libavutil/opt.h"
-// other headers
-#include <string.h>
-#include "mex.h"
-#include "crossplatform.h"
-#include "error_code.h"
 #include "swscale_internal.h"
 // demuxing and decoding contexts
 static AVFormatContext *FormatCtx = NULL;
