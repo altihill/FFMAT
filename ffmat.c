@@ -125,7 +125,7 @@ int GS_Open_sw(char *filename) {
 	// for pts calculation
     b = Stream->avg_frame_rate.den * Stream->time_base.den;
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
-	if (CodecCtx->refs && CodecCtx->gop_size)
+	if (CodecCtx->refs > 0 && CodecCtx->gop_size > 0)
         steps = CodecCtx->refs * CodecCtx->gop_size;
     return 1;
 
@@ -231,17 +231,20 @@ double GS_Pick(int64_t SeekFrame, int64_t TargetFrame, int FailCount) {
 int GS_Close() {
 	if (mxin[0])					mxDestroyArray(mxin[0]);
 	if (mxin[1])					mxDestroyArray(mxin[1]);
-    if (CodecCtx->hw_device_ctx)    av_buffer_unref(&CodecCtx->hw_device_ctx);
 	if (CodecCtx) {
-		pkt->data = NULL;
-		pkt->size = 0;
-		avcodec_send_packet(CodecCtx,pkt);
+		if (pkt) {
+			pkt->data = NULL;
+			pkt->size = 0;
+			avcodec_send_packet(CodecCtx,pkt);
+		}
+		if (CodecCtx->hw_device_ctx)
+			av_buffer_unref(&CodecCtx->hw_device_ctx);
 		avcodec_free_context(&CodecCtx);
 	}
 	if (FormatCtx)		            avformat_close_input(&FormatCtx);
 	if (pkt)			            av_packet_free(&pkt);
 	if (frame)			            av_frame_free(&frame);
-    if (hwframe)		            av_frame_free(&hwframe);
+	if (hwframe)		            av_frame_free(&hwframe);
 	if (SwsCtx)		                {sws_freeContext(SwsCtx); SwsCtx = NULL;}
 	return 1;
 }
@@ -454,7 +457,7 @@ int GS_Open(char *filename) {
 	// for pts calculation
     b = Stream->avg_frame_rate.den * Stream->time_base.den;
 	c = Stream->avg_frame_rate.num * Stream->time_base.num;
-	if (CodecCtx->refs && CodecCtx->gop_size)
+	if (CodecCtx->refs > 0 && CodecCtx->gop_size > 0)
         steps = CodecCtx->refs * CodecCtx->gop_size;
     return 1;
 

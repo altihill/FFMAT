@@ -24,6 +24,10 @@
 
 ## Change Log
 
+- version 4.2
+    - fix bug: build errors using vc2013 and MATLAB R2014b
+    - fix bug: CUDA enabled even when NVIDIA GPU does not exist
+    - fix bug: multiple closures cause memory access error
 - version 4.1
     - significantly improved performance using faster bilinear resize algorism
     - fix bug: int64 type conversion
