@@ -1,6 +1,6 @@
 # FFMAT
 
-**FFMAT**, which is short for "*ffmpeg for MATLAB*", is a fast and easy-to-use video decoding function for MATLAB.
+**FFMAT**, which is short for "*ffmpeg for MATLAB*", is a fast and easy-to-use video decoding function for MATLAB. **FFMAT** supports CUDA/DirectX9/DirectX11 hardware acceleration methods, which may boost h.264/h.265 video decoding while releasing CPU computing resources.
 
 - [FFMAT](#ffmat)
     - [Meta info](#meta-info)
